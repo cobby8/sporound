@@ -10,6 +10,8 @@ const PUBHTML_SHEET_URL = `https://docs.google.com/spreadsheets/d/e/${PUBLISHED_
 export interface CellData {
     text: string;
     rowSpan: number;
+    color?: string; // Hex or Class
+    reservationId?: string; // Useful for editing
 }
 
 export interface TimeSlot {
@@ -129,4 +131,64 @@ export async function fetchSchedule(): Promise<TimeSlot[]> {
         console.error(`[Data] CRITICAL ERROR in fetchSchedule:`, error);
         return [];
     }
+}
+
+// Helper to generate schedule from DB reservations
+export function generateScheduleData(reservations: any[]): TimeSlot[] {
+    const times = [
+        "06:00", "07:00", "08:00", "09:00", "10:00", "11:00", "12:00",
+        "13:00", "14:00", "15:00", "16:00", "17:00", "18:00", "19:00",
+        "20:00", "21:00", "22:00", "23:00"
+    ];
+
+    return times.map(time => {
+        const slot: TimeSlot = {
+            time,
+            courts: {
+                mon: { pink: { text: "", rowSpan: 1 }, mint: { text: "", rowSpan: 1 } },
+                tue: { pink: { text: "", rowSpan: 1 }, mint: { text: "", rowSpan: 1 } },
+                wed: { pink: { text: "", rowSpan: 1 }, mint: { text: "", rowSpan: 1 } },
+                thu: { pink: { text: "", rowSpan: 1 }, mint: { text: "", rowSpan: 1 } },
+                fri: { pink: { text: "", rowSpan: 1 }, mint: { text: "", rowSpan: 1 } },
+                sat: { pink: { text: "", rowSpan: 1 }, mint: { text: "", rowSpan: 1 } },
+                sun: { pink: { text: "", rowSpan: 1 }, mint: { text: "", rowSpan: 1 } },
+            }
+        };
+
+        // Populate slot based on reservations
+        reservations.forEach(res => {
+            const resDate = new Date(res.date);
+            const dayKey = DAYS[resDate.getDay() === 0 ? 6 : resDate.getDay() - 1]; // Mon=0 -> index 0
+
+            // Check if this reservation covers this time slot
+            const startHour = parseInt(res.start_time.split(':')[0]);
+            const endHour = parseInt(res.end_time.split(':')[0]);
+            const currentHour = parseInt(time.split(':')[0]);
+
+            if (currentHour >= startHour && currentHour < endHour) {
+                // Use court name if available (from join), otherwise fallback to logic (or fix fetching)
+                // Assuming 'pink' court name is 'pink' and 'mint' is 'mint' or 'green'
+                const courtName = res.courts?.name?.toLowerCase();
+                const courtKey = (courtName === 'pink' || courtName === '핑크') ? 'pink' : 'mint';
+
+                // If this is the start hour, set text and calculate rowspan
+                if (currentHour === startHour) {
+                    // Display Priority: Team Name > User Name > Guest Name
+                    let displayText = res.team_name || res.profiles?.name || res.guest_name || '예약';
+
+                    slot.courts[dayKey][courtKey] = {
+                        text: displayText,
+                        rowSpan: endHour - startHour,
+                        color: res.color,
+                        reservationId: res.id
+                    };
+                } else {
+                    // For subsequent hours, set rowspan 0 (handled by renderer)
+                    slot.courts[dayKey][courtKey] = { text: "", rowSpan: 0 };
+                }
+            }
+        });
+
+        return slot;
+    });
 }

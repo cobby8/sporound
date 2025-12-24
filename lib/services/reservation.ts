@@ -15,6 +15,13 @@ export interface ReservationDB {
     courts?: {
         name: string;
     };
+    // Added for display
+    team_name?: string;
+    guest_name?: string;
+    color?: string;
+    profiles?: {
+        name: string;
+    };
 }
 
 export const COURTS = {
@@ -41,6 +48,7 @@ export async function getWeeklySchedule(startDateStr: string): Promise<TimeSlot[
         .from('reservations')
         .select(`
             *,
+            profiles ( name ),
             courts ( name )
         `)
         .gte('date', startDateStr)
@@ -97,7 +105,8 @@ export async function getWeeklySchedule(startDateStr: string): Promise<TimeSlot[
 
         const dayKey = DAYS_KEY_MAP[dayIndex]; // e.g., 'mon'
 
-        const courtName = res.courts.name === 'pink' ? 'pink' : 'mint';
+        const cName = res.courts.name?.toLowerCase();
+        const courtName = (cName === 'pink' || cName === '핑크') ? 'pink' : 'mint';
         const startH = parseInt(res.start_time.split(':')[0]);
         const endH = parseInt(res.end_time.split(':')[0]);
         const duration = endH - startH;
@@ -108,8 +117,13 @@ export async function getWeeklySchedule(startDateStr: string): Promise<TimeSlot[
 
         // Apply to the start cell
         const targetCell = timeSlots[startRowIndex].courts[dayKey][courtName];
-        targetCell.text = '예약됨'; // Or user name if authorized
+
+        // Display Priority: Team Name > User Name > Guest Name
+        const displayText = res.team_name || res.profiles?.name || res.guest_name || '예약됨';
+
+        targetCell.text = displayText;
         targetCell.rowSpan = duration;
+        targetCell.color = res.color; // Pass custom color if exists
 
         // Mark subsequent cells as hidden (rowSpan = 0)
         for (let i = 1; i < duration; i++) {
@@ -125,4 +139,34 @@ export async function getWeeklySchedule(startDateStr: string): Promise<TimeSlot[
 
 function emptyCell(): CellData {
     return { text: '', rowSpan: 1 };
+}
+
+/**
+ * Fetch all reservations for admin dashboard.
+ * Supports filtering by page or date if needed later.
+ */
+export async function getAdminReservations() {
+    const { data, error } = await supabase
+        .from('reservations')
+        .select(`
+            *,
+            profiles ( email, name, phone ),
+            courts ( name )
+        `)
+        .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return data;
+}
+
+/**
+ * Update reservation status (approve/reject)
+ */
+export async function updateReservationStatus(id: string, status: 'confirmed' | 'rejected') {
+    const { error } = await supabase
+        .from('reservations')
+        .update({ status })
+        .eq('id', id);
+
+    if (error) throw error;
 }

@@ -26,15 +26,24 @@ const DAYS = [
 export function ScheduleBoard({ schedule, startDate }: ScheduleBoardProps) {
     const router = useRouter();
     const [selectedDayIndex, setSelectedDayIndex] = useState(0);
+    const [selectedSlots, setSelectedSlots] = useState<{
+        time: string;
+        dayIndex: number;
+        court: "pink" | "mint";
+        date: string;
+    }[]>([]);
+
     const [modalState, setModalState] = useState<{
         isOpen: boolean;
-        time: string;
+        startTime: string;
+        endTime: string;
         day: string;
         date: string; // YYYY-MM-DD
         court: "pink" | "mint";
     }>({
         isOpen: false,
-        time: "",
+        startTime: "",
+        endTime: "",
         day: "",
         date: "",
         court: "pink",
@@ -85,14 +94,56 @@ export function ScheduleBoard({ schedule, startDate }: ScheduleBoardProps) {
     const handleCellClick = (time: string, dayIndex: number, court: "pink" | "mint", isOccupied: boolean) => {
         if (isOccupied) return;
 
-        const targetDate = getDayDate(dayIndex);
+        const targetDate = formatDateFull(getDayDate(dayIndex));
+
+        setSelectedSlots(prev => {
+            // 1. Check if clicking occupied or invalid (should be handled by UI disabled, but safe check)
+
+            // 2. Check if clicking a different court or day -> user likely wants to start new selection
+            if (prev.length > 0) {
+                const first = prev[0];
+                if (first.dayIndex !== dayIndex || first.court !== court) {
+                    return [{ time, dayIndex, court, date: targetDate }];
+                }
+            }
+
+            // 3. Toggle selection
+            const exists = prev.find(s => s.time === time);
+            if (exists) {
+                return prev.filter(s => s.time !== time);
+            } else {
+                return [...prev, { time, dayIndex, court, date: targetDate }];
+            }
+        });
+    };
+
+    const handleReserveClick = () => {
+        if (selectedSlots.length === 0) return;
+
+        // Sort slots by time
+        const sorted = [...selectedSlots].sort((a, b) => parseInt(a.time) - parseInt(b.time));
+
+        // 1. Check contiguous
+        for (let i = 0; i < sorted.length - 1; i++) {
+            const current = parseInt(sorted[i].time);
+            const next = parseInt(sorted[i + 1].time);
+            if (next !== current + 1) {
+                alert("연속된 시간만 예약 가능합니다.");
+                return;
+            }
+        }
+
+        const first = sorted[0];
+        const last = sorted[sorted.length - 1];
+        const endTimeInt = parseInt(last.time.split(':')[0]) + 1;
 
         setModalState({
             isOpen: true,
-            time,
-            day: DAYS[dayIndex].label, // "월요일"
-            date: formatDateFull(targetDate), // "2024-XX-XX"
-            court,
+            startTime: first.time,
+            endTime: `${endTimeInt}:00`,
+            day: DAYS[first.dayIndex].label,
+            date: first.date,
+            court: first.court,
         });
     };
 
@@ -204,32 +255,58 @@ export function ScheduleBoard({ schedule, startDate }: ScheduleBoardProps) {
                                     if (courtData.rowSpan === 0) return null; // Hidden (merged)
 
                                     const isOccupied = !!courtData.text;
-                                    const bgColor = courtType === "pink"
-                                        ? (isOccupied ? "bg-pink-100 hover:bg-pink-200" : "bg-white hover:bg-pink-50")
-                                        : (isOccupied ? "bg-emerald-100 hover:bg-emerald-200" : "bg-white hover:bg-emerald-50");
-                                    const textColor = courtType === "pink" ? "text-pink-900" : "text-emerald-900";
+                                    const isSelected = selectedSlots.some(
+                                        s => s.time === slot.time && s.dayIndex === dIdx && s.court === courtType
+                                    );
+
+                                    // Helper for contrast
+                                    const getContrastYIQ = (hexcolor: string) => {
+                                        if (!hexcolor) return 'black';
+                                        hexcolor = hexcolor.replace('#', '');
+                                        var r = parseInt(hexcolor.substr(0, 2), 16);
+                                        var g = parseInt(hexcolor.substr(2, 2), 16);
+                                        var b = parseInt(hexcolor.substr(4, 2), 16);
+                                        var yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000;
+                                        return (yiq >= 128) ? 'black' : 'white';
+                                    }
+
+                                    // Custom Color Logic
+                                    const contrastColor = courtData.color ? getContrastYIQ(courtData.color) : 'white';
+                                    const customStyle = isOccupied && courtData.color ? { backgroundColor: courtData.color, color: contrastColor } : undefined;
+
+                                    // Fallback Classes
+                                    const bgColorClass = courtType === "pink"
+                                        ? (isOccupied ? "bg-pink-100" : isSelected ? "bg-pink-500 shadow-md font-bold" : "bg-white hover:bg-pink-50")
+                                        : (isOccupied ? "bg-emerald-100" : isSelected ? "bg-emerald-500 shadow-md font-bold" : "bg-white hover:bg-emerald-50");
+
+                                    const textColorClass = isSelected ? "text-white" : (courtType === "pink" ? "text-pink-900" : "text-emerald-900");
+                                    const finalTextColor = (isOccupied && courtData.color) ? `text-[${contrastColor}]` : textColorClass;
 
                                     return (
                                         <div
                                             key={`${day.key}-${courtType}-${slot.time}`} // Unique key
                                             style={{
-                                                gridRow: `span ${courtData.rowSpan}`
+                                                gridRow: `span ${courtData.rowSpan}`,
+                                                ...customStyle
                                             }}
                                             onClick={() => handleCellClick(slot.time, dIdx, courtType, isOccupied)}
                                             className={cn(
-                                                "border-r border-b border-gray-100 flex items-center justify-center text-center p-1 cursor-pointer transition-colors relative z-10",
-                                                bgColor,
-                                                textColor,
+                                                "border-r border-b border-gray-100 flex items-center justify-center text-center p-1 cursor-pointer transition-all relative z-10",
+                                                !customStyle && bgColorClass,
+                                                !customStyle && finalTextColor,
                                                 dIdx === selectedDayIndex ? "flex" : "hidden md:flex",
                                                 // Ensure height is correct for singles, spanned ones grow automatically
-                                                courtData.rowSpan === 1 && "h-[50px]"
+                                                courtData.rowSpan === 1 && "h-[50px]",
+                                                isSelected && "scale-[1.02] z-20"
                                             )}
                                         >
-                                            {isOccupied && (
-                                                <span className="font-semibold text-xs leading-tight break-keep block w-full">
+                                            {isOccupied ? (
+                                                <span className="font-semibold text-[13px] leading-tight break-keep block w-full">
                                                     {courtData.text}
                                                 </span>
-                                            )}
+                                            ) : isSelected ? (
+                                                <span className="text-xs">선택됨</span>
+                                            ) : null}
                                         </div>
                                     );
                                 };
@@ -249,11 +326,27 @@ export function ScheduleBoard({ schedule, startDate }: ScheduleBoardProps) {
             <ReservationModal
                 isOpen={modalState.isOpen}
                 onClose={() => setModalState((prev) => ({ ...prev, isOpen: false }))}
-                selectedTime={modalState.time}
+                startTime={modalState.startTime}
+                endTime={modalState.endTime}
                 selectedDay={modalState.day}
                 selectedDate={modalState.date}
                 selectedCourt={modalState.court}
             />
+
+            {/* Floating Reservation Button */}
+            {selectedSlots.length > 0 && (
+                <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50 animate-in fade-in slide-in-from-bottom-4">
+                    <button
+                        onClick={handleReserveClick}
+                        className="bg-gray-900 text-white px-8 py-3 rounded-full shadow-xl font-bold text-lg hover:bg-gray-800 transition-colors flex items-center gap-2"
+                    >
+                        <span>{selectedSlots.length}시간 선택됨</span>
+                        <span className="w-1 h-4 bg-gray-600 rounded-full" />
+                        <span className="text-pink-400">예약하기</span>
+                        <ChevronRight className="w-5 h-5 text-gray-400" />
+                    </button>
+                </div>
+            )}
         </>
     );
 }
