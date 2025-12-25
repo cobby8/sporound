@@ -12,6 +12,7 @@ import { LogOut, User as UserIcon } from "lucide-react";
 export function Header() {
     const pathname = usePathname();
     const [user, setUser] = useState<User | null>(null);
+    const [isAdmin, setIsAdmin] = useState(false);
     const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
 
     useEffect(() => {
@@ -27,6 +28,23 @@ export function Header() {
 
         return () => subscription.unsubscribe();
     }, []);
+
+    useEffect(() => {
+        const checkAdmin = async () => {
+            if (!user) {
+                setIsAdmin(false);
+                return;
+            }
+            const { data } = await supabase
+                .from('profiles')
+                .select('role')
+                .eq('id', user.id)
+                .single();
+
+            setIsAdmin(data?.role === 'admin');
+        };
+        checkAdmin();
+    }, [user]);
 
     const handleLogout = async () => {
         await supabase.auth.signOut();
@@ -85,6 +103,14 @@ export function Header() {
                         {/* Auth Buttons */}
                         {user ? (
                             <div className="flex items-center gap-3">
+                                {isAdmin && (
+                                    <Link
+                                        href="/admin"
+                                        className="hidden md:flex items-center justify-center px-3 py-1.5 text-xs font-bold text-white bg-gray-800 rounded hover:bg-gray-700 transition-colors mr-2"
+                                    >
+                                        관리자 모드
+                                    </Link>
+                                )}
                                 <Link href="/mypage" className="hidden md:flex flex-col items-end mr-2 hover:opacity-80 transition-opacity group">
                                     <span className="text-xs text-gray-400 group-hover:text-pink-500">마이페이지</span>
                                     <span className="text-sm font-bold text-gray-800 group-hover:text-pink-600">

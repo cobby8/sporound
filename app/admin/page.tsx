@@ -1,46 +1,50 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
-import { getAdminReservations, updateReservationStatus } from "@/lib/services/reservation";
+import { useEffect, useState, useMemo, Fragment } from "react";
+import { getAdminReservations, updateReservationStatus, ReservationDB } from "@/lib/services/reservation";
 import { supabase } from "@/lib/supabase";
 import { format } from "date-fns";
 import { ko } from "date-fns/locale";
-import { CheckCircle, XCircle, Clock, AlertCircle, Plus, ChevronDown, ChevronUp, Trash2, Users, RefreshCw, X } from "lucide-react";
-
-import { ReservationEditModal } from "@/components/admin/ReservationEditModal";
+import { CheckCircle, XCircle, Clock, AlertCircle, Plus, ChevronDown, ChevronUp, Trash2, Users, RefreshCw, X, Copy, List, Calendar as CalendarIcon, AlertTriangle, Edit2 } from "lucide-react";
+import { ScheduleBoard } from "@/components/ScheduleBoard";
 import { AdminReservationForm } from "@/components/admin/AdminReservationForm";
+import { CalendarDetailPopover } from "@/components/admin/CalendarDetailPopover";
+import { ReservationEditModal } from "@/components/admin/ReservationEditModal";
 
-type Reservation = {
-    id: string;
-    date: string;
-    start_time: string;
-    end_time: string;
-    status: 'confirmed' | 'rejected' | 'pending' | 'canceled';
-    court_id: string;
-    user_id: string;
-    purpose: string;
-    people_count: number;
-    total_price: number;
-    created_at: string;
-    team_name?: string;
-    group_id?: string;
-    recurrence_rule?: any;
-    guest_name?: string;
-    guest_phone?: string;
-    color?: string;
-    courts: { name: string };
-    profiles: { name: string; phone: string; email: string };
-};
+
+import { generateScheduleData } from "@/lib/data";
+
+type Reservation = ReservationDB; // Alias for local use
 
 type DisplayItem =
-    | { type: 'single'; data: Reservation }
-    | { type: 'group'; id: string; items: Reservation[]; start: string; end: string; rule: any; teamName: string; user: any };
+    | { type: 'single', data: Reservation }
+    | { type: 'group', id: string, items: Reservation[], start: string, end: string, rule: any, teamName: string, user: any };
 
 export default function AdminPage() {
     const [reservations, setReservations] = useState<Reservation[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedReservation, setSelectedReservation] = useState<Reservation | null>(null);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+
+    // Calendar Popover State
+    const [popoverData, setPopoverData] = useState<{
+        isOpen: boolean;
+        reservation: Reservation | null;
+        position: { x: number; y: number } | null;
+    }>({ isOpen: false, reservation: null, position: null });
+
+    // Delete Confirmation State
+    const [deleteTarget, setDeleteTarget] = useState<DisplayItem | null>(null);
+    const [deleteScope, setDeleteScope] = useState<'this' | 'following' | 'all'>('this');
+
+
+    // Grouping State
+    const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
+    const [currentDate, setCurrentDate] = useState(new Date());
+    const [copyData, setCopyData] = useState<any>(null);
+    const [createPrefill, setCreatePrefill] = useState<any>(null);
+    const [searchTerm, setSearchTerm] = useState("");
+    const [isRecovering, setIsRecovering] = useState(false);
 
     // Grouping State
     const [groupBy, setGroupBy] = useState<'none' | 'group'>('group');
@@ -85,21 +89,81 @@ export default function AdminPage() {
         }
     };
 
-    const handleDelete = async (item: DisplayItem) => {
-        if (!confirm("정말로 삭제하시겠습니까? " + (item.type === 'group' ? `\n(반복 예약 ${item.items.length}건이 모두 삭제됩니다)` : ""))) return;
+    // Actual Delete Logic (Triggered by Modal)
+    const executeDelete = async () => {
+        if (!deleteTarget) return;
+
+        const item = deleteTarget;
+        const isGroup = item.type === 'group';
+        const isRecurringInstance = item.type === 'single' && !!item.data.group_id;
 
         try {
-            if (item.type === 'group') {
+            if (isGroup) {
+                // Group Header: Delete All
                 const { error } = await supabase.from('reservations').delete().eq('group_id', item.id);
                 if (error) throw error;
+            } else if (isRecurringInstance) {
+                // Recurring Instance: Use Scope
+                if (deleteScope === 'this') {
+                    const { error } = await supabase.from('reservations').delete().eq('id', item.data.id);
+                    if (error) throw error;
+                } else if (deleteScope === 'following') {
+                    const { error } = await supabase.from('reservations').delete()
+                        .eq('group_id', item.data.group_id)
+                        .gte('date', item.data.date);
+                    if (error) throw error;
+                } else {
+                    // All
+                    const { error } = await supabase.from('reservations').delete().eq('group_id', item.data.group_id!);
+                    if (error) throw error;
+                }
             } else {
+                // Single Standalone
                 const { error } = await supabase.from('reservations').delete().eq('id', item.data.id);
                 if (error) throw error;
             }
+
+            // Close popover if open
+            setPopoverData({ isOpen: false, reservation: null, position: null });
+
+            // Close Modal
+            setDeleteTarget(null);
+
+            alert("삭제되었습니다.");
             fetchReservations();
         } catch (error: any) {
+            console.error("Delete failed:", error);
             alert("삭제 실패: " + error.message);
         }
+    };
+
+    // Trigger Delete Modal
+    const handleDelete = (item: DisplayItem) => {
+        setDeleteScope('this'); // Reset scope
+        setDeleteTarget(item);
+    };
+
+    const handleCopy = (res: Reservation) => {
+        const dataToCopy = { ...res };
+        // Clean up data for copy (new reservation)
+        delete (dataToCopy as any).id;
+        delete (dataToCopy as any).created_at;
+        delete (dataToCopy as any).group_id; // Clean group logic
+        delete (dataToCopy as any).recurrence_rule; // Clean recurrence logic
+
+        setCopyData(dataToCopy);
+        setIsCreateModalOpen(true);
+    };
+
+    const handleCalendarReserve = (data: { startTime: string, endTime: string, date: string, court: string }) => {
+        setCopyData(null);
+        setCreatePrefill({
+            date: data.date,
+            startTime: data.startTime,
+            endTime: data.endTime,
+            courtName: data.court
+        });
+        setIsCreateModalOpen(true);
     };
 
     const toggleGroup = (groupId: string) => {
@@ -110,14 +174,27 @@ export default function AdminPage() {
     };
 
     const displayItems = useMemo(() => {
+        // Filter based on Search Term
+        const filteredReservations = reservations.filter(r => {
+            if (!searchTerm) return true;
+            const lowerTerm = searchTerm.toLowerCase();
+            return (
+                r.team_name?.toLowerCase().includes(lowerTerm) ||
+                r.profiles?.name?.toLowerCase().includes(lowerTerm) ||
+                r.profiles?.phone?.includes(searchTerm) ||
+                r.guest_name?.toLowerCase().includes(lowerTerm) ||
+                r.purpose?.toLowerCase().includes(lowerTerm)
+            );
+        });
+
         if (groupBy === 'none') {
-            return reservations.map(r => ({ type: 'single', data: r } as DisplayItem));
+            return filteredReservations.map(r => ({ type: 'single', data: r } as DisplayItem));
         }
 
         const groups = new Map<string, Reservation[]>();
         const singles: Reservation[] = [];
 
-        reservations.forEach(r => {
+        filteredReservations.forEach(r => {
             if (r.group_id) {
                 if (!groups.has(r.group_id)) groups.set(r.group_id, []);
                 groups.get(r.group_id)!.push(r);
@@ -139,13 +216,23 @@ export default function AdminPage() {
             const first = groupItems[0];
             const last = groupItems[groupItems.length - 1];
 
+            // Try to parse rule if it's a string, or use if object
+            let rule = first.recurrence_rule;
+            if (typeof rule === 'string') {
+                try { rule = JSON.parse(rule); } catch (e) { }
+            }
+
+            // Use Rule's start/end date if available (Source of Truth), otherwise fallback to first/last item date
+            const groupStart = rule?.startDate || first.date;
+            const groupEnd = rule?.endDate || last.date;
+
             items.push({
                 type: 'group',
                 id: groupId,
                 items: groupItems,
-                start: first.date,
-                end: last.date,
-                rule: first.recurrence_rule,
+                start: groupStart,
+                end: groupEnd,
+                rule: rule,
                 teamName: first.team_name || '',
                 user: first.profiles || { name: first.guest_name || '익명', phone: first.guest_phone || '' }
             });
@@ -159,7 +246,42 @@ export default function AdminPage() {
         });
 
         return items;
-    }, [reservations, groupBy]);
+    }, [reservations, groupBy, searchTerm]);
+
+    // Calendar Data Generation Use String Comparison
+    const weeklySchedule = useMemo(() => {
+        if (viewMode !== 'calendar') return [];
+
+        // 1. Calculate Monday
+        const start = new Date(currentDate);
+        const day = start.getDay();
+        const diff = start.getDate() - day + (day === 0 ? -6 : 1);
+        start.setDate(diff); // Monday
+
+        // Format range as strings "YYYY-MM-DD"
+        const startStr = format(start, 'yyyy-MM-dd');
+
+        const end = new Date(start);
+        end.setDate(start.getDate() + 6); // Sunday
+        const endStr = format(end, 'yyyy-MM-dd');
+
+        // 2. Filter reservations using String Comparison
+        const weeklyReservations = reservations.filter(r => {
+            // r.date is "YYYY-MM-DD" string
+            return r.date >= startStr && r.date <= endStr;
+        });
+
+        // 3. Generate schedule
+        return generateScheduleData(weeklyReservations);
+    }, [reservations, currentDate, viewMode]);
+
+    const getWeekStartDate = () => {
+        const start = new Date(currentDate);
+        const day = start.getDay();
+        const diff = start.getDate() - day + (day === 0 ? -6 : 1);
+        start.setDate(diff);
+        return format(start, 'yyyy-MM-dd');
+    };
 
     const getStatusBadge = (status: string) => {
         switch (status) {
@@ -177,165 +299,267 @@ export default function AdminPage() {
 
     return (
         <div className="bg-white shadow rounded-lg overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-                <div className="flex items-center gap-4">
-                    <h3 className="text-lg font-medium text-gray-900">전체 예약 현황</h3>
-                    <div className="flex bg-gray-100 rounded-lg p-1">
-                        <button
-                            className={`px-3 py-1 text-xs font-bold rounded ${groupBy === 'group' ? 'bg-white shadow text-black' : 'text-gray-500'}`}
-                            onClick={() => setGroupBy('group')}
-                        >
-                            그룹 보기
-                        </button>
-                        <button
-                            className={`px-3 py-1 text-xs font-bold rounded ${groupBy === 'none' ? 'bg-white shadow text-black' : 'text-gray-500'}`}
-                            onClick={() => setGroupBy('none')}
-                        >
-                            개별 보기
-                        </button>
+            <div className="px-6 py-4 border-b border-gray-200 flex flex-col md:flex-row justify-between items-center gap-4">
+                <div className="flex flex-col gap-4 w-full md:w-auto">
+                    <div className="flex items-center gap-4">
+                        <h3 className="text-lg font-medium text-gray-900">전체 예약 현황</h3>
+                        <div className="flex bg-gray-100 rounded-lg p-1">
+                            <button
+                                className={`px-3 py-1 text-xs font-bold rounded flex items-center gap-1 ${viewMode === 'list' ? 'bg-white shadow text-black' : 'text-gray-500'}`}
+                                onClick={() => setViewMode('list')}
+                            >
+                                <List className="w-3 h-3" /> 리스트
+                            </button>
+                            <button
+                                className={`px-3 py-1 text-xs font-bold rounded flex items-center gap-1 ${viewMode === 'calendar' ? 'bg-white shadow text-black' : 'text-gray-500'}`}
+                                onClick={() => setViewMode('calendar')}
+                            >
+                                <CalendarIcon className="w-3 h-3" /> 캘린더
+                            </button>
+                        </div>
+                        {viewMode === 'list' && (
+                            <div className="flex bg-gray-100 rounded-lg p-1">
+                                <button
+                                    className={`px-3 py-1 text-xs font-bold rounded ${groupBy === 'group' ? 'bg-white shadow text-black' : 'text-gray-500'}`}
+                                    onClick={() => setGroupBy('group')}
+                                >
+                                    그룹
+                                </button>
+                                <button
+                                    className={`px-3 py-1 text-xs font-bold rounded ${groupBy === 'none' ? 'bg-white shadow text-black' : 'text-gray-500'}`}
+                                    onClick={() => setGroupBy('none')}
+                                >
+                                    개별
+                                </button>
+                            </div>
+                        )}
                     </div>
                 </div>
-                <button
-                    onClick={() => setIsCreateModalOpen(true)}
-                    className="flex items-center gap-2 bg-gray-900 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-gray-800"
-                >
-                    <Plus className="w-4 h-4" />
-                    예약 생성
-                </button>
+
+                <div className="flex items-center gap-2 w-full md:w-auto">
+                    <div className="relative flex-1 md:w-64">
+                        <input
+                            type="text"
+                            placeholder="이름, 팀명, 전화번호 검색"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="w-full pl-3 pr-10 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-black"
+                        />
+                        {searchTerm && (
+                            <button
+                                onClick={() => setSearchTerm("")}
+                                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                            >
+                                <X className="w-3 h-3" />
+                            </button>
+                        )}
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                        {viewMode === 'calendar' && (
+                            <div className="flex items-center gap-2 mr-4 bg-gray-50 p-1 rounded-lg">
+                                <button onClick={() => setCurrentDate(d => { const n = new Date(d); n.setDate(n.getDate() - 7); return n; })} className="p-1 hover:bg-white rounded shadow-sm"><ChevronDown className="w-4 h-4 rotate-90" /></button>
+                                <span className="text-sm font-bold min-w-[100px] text-center">{getWeekStartDate()}</span>
+                                <button onClick={() => setCurrentDate(d => { const n = new Date(d); n.setDate(n.getDate() + 7); return n; })} className="p-1 hover:bg-white rounded shadow-sm"><ChevronDown className="w-4 h-4 -rotate-90" /></button>
+                            </div>
+                        )}
+                        <div className="flex items-center gap-2">
+
+                            <button
+                                onClick={() => {
+                                    setCopyData(null);
+                                    setCreatePrefill(null);
+                                    setIsCreateModalOpen(true);
+                                }}
+                                className="flex items-center gap-2 bg-gray-900 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-gray-800"
+                            >
+                                <Plus className="w-4 h-4" />
+                                예약 생성
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </div>
 
-            <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                        <tr>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">상태</th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">날짜/시간</th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">팀/사용자</th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">코트/인원</th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">목적/금액</th>
-                            <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">관리</th>
-                        </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                        {loading ? (
+
+            {viewMode === 'list' ? (
+                <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50">
                             <tr>
-                                <td colSpan={6} className="px-6 py-10 text-center text-gray-500">로딩 중...</td>
+                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">상태</th>
+                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">날짜/시간</th>
+                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">팀/사용자</th>
+                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">코트/인원</th>
+                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">목적/금액</th>
+                                <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">관리</th>
                             </tr>
-                        ) : displayItems.length === 0 ? (
-                            <tr>
-                                <td colSpan={6} className="px-6 py-10 text-center text-gray-500">예약 내역이 없습니다.</td>
-                            </tr>
-                        ) : (
-                            displayItems.map((item) => {
-                                if (item.type === 'single') {
-                                    const res = item.data;
-                                    return (
-                                        <tr key={res.id} className="hover:bg-gray-50">
-                                            <td className="px-6 py-4 whitespace-nowrap">{getStatusBadge(res.status)}</td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                                <div className="font-medium">{format(new Date(res.date), 'yyyy-MM-dd (eee)', { locale: ko })}</div>
-                                                <div className="text-gray-500 text-xs">{res.start_time.slice(0, 5)} - {res.end_time.slice(0, 5)}</div>
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                                <div className="font-bold">{res.team_name || '-'}</div>
-                                                <div className="text-xs text-gray-500">{res.profiles?.name || res.guest_name}</div>
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm">
-                                                <span className={`px-2 py-1 rounded-md text-xs font-bold ${res.courts?.name === 'pink' ? 'bg-pink-100 text-pink-700' : 'bg-emerald-100 text-emerald-700'}`}>
-                                                    {res.courts?.name || '코트 미정'}
-                                                </span>
-                                                <div className="text-xs text-gray-500 mt-1">{res.people_count || 1}명</div>
-                                            </td>
-                                            <td className="px-6 py-4 text-sm text-gray-500 max-w-xs">
-                                                <div className="truncate" title={res.purpose}>{res.purpose}</div>
-                                                <div className="font-medium text-gray-900">{res.total_price ? `₩${res.total_price.toLocaleString()}` : '-'}</div>
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                                <div className="flex justify-end gap-2 items-center">
-                                                    <button onClick={() => setSelectedReservation(res)} className="text-gray-600 hover:text-gray-900 bg-gray-100 px-2 py-1 rounded text-xs">수정</button>
-                                                    <button onClick={() => handleDelete(item)} className="text-red-600 hover:bg-red-50 p-1 rounded"><Trash2 className="w-4 h-4" /></button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    );
-                                } else {
-                                    // Group Row
-                                    const isExpanded = expandedGroups.has(item.id);
-                                    return (
-                                        <>
-                                            <tr key={item.id} className="bg-blue-50/50 hover:bg-blue-50 border-l-4 border-blue-500">
-                                                <td className="px-6 py-4 whitespace-nowrap">
-                                                    <div className="flex items-center gap-2">
-                                                        <RefreshCw className="w-4 h-4 text-blue-600" />
-                                                        <span className="text-xs font-bold text-blue-700">반복 예약 ({item.items.length}건)</span>
-                                                    </div>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                            {loading ? (
+                                <tr>
+                                    <td colSpan={6} className="px-6 py-10 text-center text-gray-500">로딩 중...</td>
+                                </tr>
+                            ) : displayItems.length === 0 ? (
+                                <tr>
+                                    <td colSpan={6} className="px-6 py-10 text-center text-gray-500">예약 내역이 없습니다.</td>
+                                </tr>
+                            ) : (
+                                displayItems.map((item) => {
+                                    if (item.type === 'single') {
+                                        const res = item.data;
+                                        return (
+                                            <tr key={res.id} className="hover:bg-gray-50">
+                                                <td className="px-6 py-4 whitespace-nowrap">{getStatusBadge(res.status)}</td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                    <div className="font-medium">{format(new Date(res.date), 'yyyy-MM-dd (eee)', { locale: ko })}</div>
+                                                    <div className="text-gray-500 text-xs">{res.start_time.slice(0, 5)} - {res.end_time.slice(0, 5)}</div>
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                                    <div className="font-bold">{item.start} ~ {item.end}</div>
-                                                    <div className="text-xs text-gray-500">
-                                                        {item.rule?.daysOfWeek?.map((d: string) => d.toUpperCase()).join(', ')}
-                                                    </div>
+                                                    <div className="font-bold">{res.team_name || '-'}</div>
+                                                    <div className="text-xs text-gray-500">{res.profiles?.name || res.guest_name}</div>
                                                 </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                                    <div className="font-bold">{item.teamName || '-'}</div>
-                                                    <div className="text-xs text-gray-500">{item.user?.name}</div>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                                    <span className={`px-2 py-1 rounded-md text-xs font-bold ${res.courts?.name === 'pink' ? 'bg-pink-100 text-pink-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                                                        {res.courts?.name || '코트 미정'}
+                                                    </span>
+                                                    <div className="text-xs text-gray-500 mt-1">{res.people_count || 1}명</div>
                                                 </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                                    {item.items[0].courts?.name} 등
-                                                </td>
-                                                <td className="px-6 py-4 text-sm">
-                                                    -
+                                                <td className="px-6 py-4 text-sm text-gray-500 max-w-xs">
+                                                    <div className="truncate" title={res.purpose || ""}>{res.purpose}</div>
+                                                    <div className="font-medium text-gray-900">{res.total_price ? `₩${res.total_price.toLocaleString()}` : '-'}</div>
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                                     <div className="flex justify-end gap-2 items-center">
-                                                        <button
-                                                            onClick={() => setSelectedReservation(item.items[0])} // Edit group via first item
-                                                            className="text-blue-600 hover:text-blue-900 bg-blue-100 px-2 py-1 rounded text-xs"
-                                                        >
-                                                            전체 수정
-                                                        </button>
+                                                        <button onClick={() => handleCopy(res)} className="text-gray-600 hover:text-gray-900 bg-gray-100 px-2 py-1 rounded text-xs flex items-center gap-1"><Copy className="w-3 h-3" /> 복사</button>
+                                                        <button onClick={() => setSelectedReservation(res)} className="text-gray-600 hover:text-gray-900 bg-gray-100 px-2 py-1 rounded text-xs">수정</button>
                                                         <button onClick={() => handleDelete(item)} className="text-red-600 hover:bg-red-50 p-1 rounded"><Trash2 className="w-4 h-4" /></button>
-                                                        <button onClick={() => toggleGroup(item.id)} className="text-gray-500 p-1">
-                                                            {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                                                        </button>
                                                     </div>
                                                 </td>
                                             </tr>
-                                            {isExpanded && item.items.map((res) => (
-                                                <tr key={res.id} className="bg-gray-50/50 hover:bg-gray-100">
-                                                    <td className="px-6 py-2 pl-10 whitespace-nowrap text-xs">
-                                                        {getStatusBadge(res.status)}
+                                        );
+                                    } else {
+                                        // Group Row
+                                        const isExpanded = expandedGroups.has(item.id);
+                                        return (
+                                            <Fragment key={item.id}>
+                                                <tr className="bg-blue-50/50 hover:bg-blue-50 border-l-4 border-blue-500">
+                                                    <td className="px-6 py-4 whitespace-nowrap">
+                                                        <div className="flex items-center gap-2">
+                                                            <RefreshCw className="w-4 h-4 text-blue-600" />
+                                                            <span className="text-xs font-bold text-blue-700">반복 예약 ({item.items.length}건)</span>
+                                                        </div>
                                                     </td>
-                                                    <td className="px-6 py-2 whitespace-nowrap text-xs text-gray-700">
-                                                        {format(new Date(res.date), 'yyyy-MM-dd (eee)', { locale: ko })} {res.start_time.slice(0, 5)}
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                        <div className="font-bold">{item.start} ~ {item.end}</div>
+                                                        <div className="text-xs text-gray-500">
+                                                            {item.rule?.daysOfWeek?.map((d: string) => d.toUpperCase()).join(', ')}
+                                                        </div>
                                                     </td>
-                                                    <td className="px-6 py-2 whitespace-nowrap text-xs text-gray-500">
-                                                        {res.profiles?.name}
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                        <div className="font-bold">{item.teamName || '-'}</div>
+                                                        <div className="text-xs text-gray-500">{item.user?.name}</div>
                                                     </td>
-                                                    <td className="px-6 py-2 whitespace-nowrap text-xs text-gray-500">
-                                                        {res.courts?.name}
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                        {item.items[0].courts?.name} 등
                                                     </td>
-                                                    <td className="px-6 py-2 text-xs text-gray-500 truncate max-w-xs">
-                                                        {res.purpose}
+                                                    <td className="px-6 py-4 text-sm">
+                                                        -
                                                     </td>
-                                                    <td className="px-6 py-2 text-right">
-                                                        <button
-                                                            onClick={() => setSelectedReservation(res)}
-                                                            className="text-gray-400 hover:text-gray-900 text-xs underline"
-                                                        >
-                                                            개별 수정
-                                                        </button>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                                        <div className="flex justify-end gap-2 items-center">
+                                                            {/* Group can also be copied? Maybe copy first item logic */}
+                                                            <button onClick={() => handleCopy(item.items[0])} className="text-gray-600 hover:text-gray-900 bg-gray-100 px-2 py-1 rounded text-xs flex items-center gap-1"><Copy className="w-3 h-3" /> 복사</button>
+                                                            <button
+                                                                onClick={() => setSelectedReservation(item.items[0])} // Edit group via first item
+                                                                className="text-blue-600 hover:text-blue-900 bg-blue-100 px-2 py-1 rounded text-xs"
+                                                            >
+                                                                전체 수정
+                                                            </button>
+                                                            <button onClick={() => handleDelete(item)} className="text-red-600 hover:bg-red-50 p-1 rounded"><Trash2 className="w-4 h-4" /></button>
+                                                            <button onClick={() => toggleGroup(item.id)} className="text-gray-500 p-1">
+                                                                {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                                                            </button>
+                                                        </div>
                                                     </td>
                                                 </tr>
-                                            ))}
-                                        </>
-                                    );
-                                }
-                            })
-                        )}
-                    </tbody>
-                </table>
-            </div>
+                                                {isExpanded && item.items.map((res) => (
+                                                    <tr key={res.id} className="bg-gray-50/50 hover:bg-gray-100">
+                                                        <td className="px-6 py-2 pl-10 whitespace-nowrap text-xs">
+                                                            {getStatusBadge(res.status)}
+                                                        </td>
+                                                        <td className="px-6 py-2 whitespace-nowrap text-xs text-gray-700">
+                                                            {format(new Date(res.date), 'yyyy-MM-dd (eee)', { locale: ko })} {res.start_time.slice(0, 5)}
+                                                        </td>
+                                                        <td className="px-6 py-2 whitespace-nowrap text-xs text-gray-500">
+                                                            {res.profiles?.name}
+                                                        </td>
+                                                        <td className="px-6 py-2 whitespace-nowrap text-xs text-gray-500">
+                                                            {res.courts?.name}
+                                                        </td>
+                                                        <td className="px-6 py-2 text-xs text-gray-500 truncate max-w-xs">
+                                                            {res.purpose}
+                                                        </td>
+                                                        <td className="px-6 py-2 text-right">
+                                                            <div className="flex justify-end gap-1">
+                                                                <button onClick={() => handleCopy(res)} className="text-gray-400 hover:text-gray-900 text-xs mr-2"><Copy className="w-3 h-3 inline" /></button>
+                                                                <button
+                                                                    onClick={() => setSelectedReservation(res)}
+                                                                    className="text-gray-400 hover:text-gray-900 text-xs underline"
+                                                                >
+                                                                    개별 수정
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </Fragment>
+                                        );
+                                    }
+                                })
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            ) : (
+                <div className="p-4 bg-gray-50 min-h-[500px]">
+                    <ScheduleBoard
+                        schedule={weeklySchedule}
+                        startDate={getWeekStartDate()}
+                        onOccupiedCellClick={(id: string, e?: React.MouseEvent) => {
+                            const res = reservations.find(r => r.id === id);
+                            if (res && e) {
+                                setPopoverData({
+                                    isOpen: true,
+                                    reservation: res,
+                                    position: { x: e.clientX, y: e.clientY }
+                                });
+                            }
+                        }}
+                        onReserve={handleCalendarReserve}
+                    />
+                </div>
+            )}
+
+            {/* Popover */}
+            {popoverData.isOpen && (
+                <CalendarDetailPopover
+                    reservation={popoverData.reservation}
+                    position={popoverData.position}
+                    onClose={() => setPopoverData(prev => ({ ...prev, isOpen: false }))}
+                    onEdit={(res) => {
+                        setPopoverData(prev => ({ ...prev, isOpen: false }));
+                        setSelectedReservation(res);
+                    }}
+                    onCopy={(res) => {
+                        setPopoverData(prev => ({ ...prev, isOpen: false }));
+                        handleCopy(res);
+                    }}
+                    onDelete={(res) => {
+                        handleDelete({ type: 'single', data: res });
+                    }}
+                />
+            )}
 
             {/* Shared Edit Modal */}
             <ReservationEditModal
@@ -358,11 +582,94 @@ export default function AdminPage() {
                             </button>
                         </div>
                         <AdminReservationForm
+                            initialData={copyData}
+                            isCopyMode={!!copyData}
+                            prefillData={createPrefill}
                             onSuccess={() => {
                                 setIsCreateModalOpen(false);
+                                setCopyData(null);
+                                setCreatePrefill(null);
                                 fetchReservations();
                             }}
                         />
+                    </div>
+                </div>
+            )}
+            {/* Simple Delete Confirmation Modal */}
+            {deleteTarget && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4 animate-in fade-in duration-200">
+                    <div className="bg-white rounded-lg shadow-xl max-w-sm w-full p-6">
+                        <div className="flex items-center gap-2 text-red-600 mb-4">
+                            <AlertTriangle className="w-6 h-6" />
+                            <h3 className="text-lg font-bold">삭제 확인</h3>
+                        </div>
+
+                        {deleteTarget.type === 'single' && deleteTarget.data.group_id ? (
+                            <div className="mb-6">
+                                <p className="text-gray-600 mb-3 font-medium">
+                                    반복되는 예약입니다. 삭제 범위를 선택해주세요.
+                                </p>
+                                <div className="space-y-3">
+                                    <label className="flex items-center gap-3 p-2 rounded hover:bg-gray-50 cursor-pointer">
+                                        <input
+                                            type="radio"
+                                            name="deleteScope"
+                                            value="this"
+                                            checked={deleteScope === 'this'}
+                                            onChange={() => setDeleteScope('this')}
+                                            className="w-4 h-4 text-red-600 focus:ring-red-500"
+                                        />
+                                        <span className="text-sm text-gray-700">이 일정만 삭제</span>
+                                    </label>
+                                    <label className="flex items-center gap-3 p-2 rounded hover:bg-gray-50 cursor-pointer">
+                                        <input
+                                            type="radio"
+                                            name="deleteScope"
+                                            value="following"
+                                            checked={deleteScope === 'following'}
+                                            onChange={() => setDeleteScope('following')}
+                                            className="w-4 h-4 text-red-600 focus:ring-red-500"
+                                        />
+                                        <div className="flex flex-col">
+                                            <span className="text-sm text-gray-700">이 이후 일정 모두 삭제</span>
+                                            <span className="text-xs text-gray-400">선택한 일정을 포함하여 이후의 모든 반복 예약이 삭제됩니다.</span>
+                                        </div>
+                                    </label>
+                                    <label className="flex items-center gap-3 p-2 rounded hover:bg-gray-50 cursor-pointer">
+                                        <input
+                                            type="radio"
+                                            name="deleteScope"
+                                            value="all"
+                                            checked={deleteScope === 'all'}
+                                            onChange={() => setDeleteScope('all')}
+                                            className="w-4 h-4 text-red-600 focus:ring-red-500"
+                                        />
+                                        <span className="text-sm text-gray-700">전체 일정 삭제</span>
+                                    </label>
+                                </div>
+                            </div>
+                        ) : (
+                            <p className="text-gray-600 mb-6 whitespace-pre-wrap">
+                                {deleteTarget.type === 'group'
+                                    ? `[반복 예약 전체 삭제]\n총 ${deleteTarget.items.length}건의 예약이 영구적으로 삭제됩니다.`
+                                    : `해당 예약을 정말 삭제하시겠습니까?`}
+                            </p>
+                        )}
+
+                        <div className="flex justify-end gap-2">
+                            <button
+                                onClick={() => setDeleteTarget(null)}
+                                className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-md transition-colors"
+                            >
+                                취소
+                            </button>
+                            <button
+                                onClick={executeDelete}
+                                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md shadow-sm transition-colors"
+                            >
+                                삭제하기
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

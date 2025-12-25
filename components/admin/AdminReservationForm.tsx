@@ -20,13 +20,14 @@ function generateUUID() {
 interface AdminReservationFormProps {
     onSuccess: () => void;
     initialData?: any; // If provided, we are in "Edit Mode"
+    isCopyMode?: boolean; // If true, we are copying (pre-fill but create new)
+    prefillData?: any | null; // If provided, we are creating new but filling fields (e.g. from calendar)
 }
 
-export function AdminReservationForm({ onSuccess, initialData }: AdminReservationFormProps) {
+export function AdminReservationForm({ onSuccess, initialData, isCopyMode = false, prefillData }: AdminReservationFormProps) {
     const [mode, setMode] = useState<"one-time" | "recurring">("one-time");
     const [loading, setLoading] = useState(false);
-    // If editing, skip user search if data exists, go straight to details? 
-    // Actually, let's keep it flexible. If initialData has user, set it.
+    // If editing/copying, skip user search if data exists, go straight to details? 
     const [step, setStep] = useState<"user" | "details" | "confirm">(initialData ? "details" : "user");
 
     const colorInputRef = useRef<HTMLInputElement>(null);
@@ -69,17 +70,14 @@ export function AdminReservationForm({ onSuccess, initialData }: AdminReservatio
                 if (initialData.profiles) {
                     setSelectedUser(initialData.profiles);
                 } else {
-                    // Fetch profile if needed, or just set ID. For now assume passed profile is enough or we keep ID key.
-                    // If we only have ID, we might not show name correctly in step 1, but we are in step 2.
                     setSelectedUser({ id: initialData.user_id, name: initialData.profiles?.name || 'Unknown' });
                 }
             } else {
                 setIsGuest(true);
             }
 
-            // Parse Recurrence Rule if exists, or fallback to single record data
+            // Parse Recurrence Rule
             let rule = initialData.recurrence_rule;
-            // If valid JSON string
             if (typeof rule === 'string') {
                 try { rule = JSON.parse(rule); } catch (e) { }
             }
@@ -168,14 +166,23 @@ export function AdminReservationForm({ onSuccess, initialData }: AdminReservatio
         }
         if (!details.startDate || !details.endDate || details.daysOfWeek.length === 0) return [];
 
-        const dates = [];
-        const start = new Date(details.startDate);
-        const end = new Date(details.endDate);
+        const dates: string[] = [];
+
+        // Use Noon to avoid timezone wrapping issues
+        const s = details.startDate.split('-').map(Number);
+        const e = details.endDate.split('-').map(Number);
+
+        const current = new Date(s[0], s[1] - 1, s[2], 12, 0, 0);
+        const end = new Date(e[0], e[1] - 1, e[2], 12, 0, 0);
+
         const dayMap: { [key: string]: number } = { "sun": 0, "mon": 1, "tue": 2, "wed": 3, "thu": 4, "fri": 5, "sat": 6 };
         const targetIndices = details.daysOfWeek.map(d => dayMap[d]);
 
-        let current = new Date(start);
-        while (current <= end) {
+        // Safety break to prevent infinite loops
+        let safety = 0;
+
+        while (current <= end && safety < 1000) {
+            safety++;
             if (targetIndices.includes(current.getDay())) {
                 dates.push(current.toISOString().split('T')[0]);
             }
@@ -236,7 +243,7 @@ export function AdminReservationForm({ onSuccess, initialData }: AdminReservatio
         if (!isGuest && !selectedUser) return;
         setLoading(true);
 
-        const groupId = mode === 'recurring' ? (initialData?.group_id || generateUUID()) : null;
+        const groupId = mode === 'recurring' ? ((initialData?.group_id && !isCopyMode) ? initialData.group_id : generateUUID()) : null;
         const recurrenceRule = mode === 'recurring' ? {
             daysOfWeek: details.daysOfWeek,
             startDate: details.startDate,
@@ -261,8 +268,8 @@ export function AdminReservationForm({ onSuccess, initialData }: AdminReservatio
             recurrence_rule: recurrenceRule
         }));
 
-        // Delete previous if editing
-        if (initialData) {
+        // Delete previous ONLY if editing and NOT copying
+        if (initialData && !isCopyMode) {
             let deleteQuery = supabase.from('reservations').delete();
 
             if (initialData.group_id) {
@@ -284,7 +291,7 @@ export function AdminReservationForm({ onSuccess, initialData }: AdminReservatio
             alert("예약 생성 중 오류 발생:\n" + error.message + "\n\n(Supabase SQL Editor에서 verify_fix.sql 또는 master_fix.sql을 실행했는지 확인해주세요.)");
         } else {
             console.log("Insert Success:", insertData);
-            alert(`${inserts.length}건의 예약이 ${initialData ? '수정' : '생성'}되었습니다.`);
+            alert(`${inserts.length}건의 예약이 ${initialData ? (isCopyMode ? '생성' : '수정') : '생성'}되었습니다.`);
             onSuccess();
         }
         setLoading(false);
@@ -294,7 +301,7 @@ export function AdminReservationForm({ onSuccess, initialData }: AdminReservatio
         <div className="bg-white p-6 rounded-lg shadow-lg border border-gray-200">
             <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
                 <Calendar className="w-5 h-5 text-gray-500" />
-                {initialData ? "예약 수정" : (mode === 'one-time' ? "일일 대관 생성" : "정기 대관 생성")}
+                {initialData ? (isCopyMode ? "예약 복사 (새 예약 생성)" : "예약 수정") : (mode === 'one-time' ? "일일 대관 생성" : "정기 대관 생성")}
             </h3>
 
             {/* Mode Toggle - Always visible for flexibility */}
@@ -504,7 +511,7 @@ export function AdminReservationForm({ onSuccess, initialData }: AdminReservatio
                     )}
 
                     <button onClick={handlePreview} className="w-full bg-pink-600 text-white py-2 rounded font-bold">
-                        {initialData ? "변경 내용 확인 (충돌 체크)" : "예약 가능 확인 (충돌 체크)"}
+                        {initialData ? (isCopyMode ? "복사 내용 확인 (충돌 체크)" : "변경 내용 확인 (충돌 체크)") : "예약 가능 확인 (충돌 체크)"}
                     </button>
                     <button onClick={() => setStep("user")} className="w-full text-gray-500 text-sm">뒤로가기 (담당자/연락처 변경)</button>
                 </div>
@@ -513,7 +520,7 @@ export function AdminReservationForm({ onSuccess, initialData }: AdminReservatio
             {step === "confirm" && (
                 <div className="space-y-4">
                     <div className="bg-gray-50 p-3 rounded text-sm">
-                        <p><strong>{initialData ? '수정' : '생성'} 예정:</strong> {previewDates.length}건</p>
+                        <p><strong>{initialData && !isCopyMode ? '수정' : '생성'} 예정:</strong> {previewDates.length}건</p>
                         {mode === 'recurring' ? (
                             <p><strong>기간:</strong> {previewDates[0]} ~ {previewDates[previewDates.length - 1]}</p>
                         ) : (
@@ -521,9 +528,14 @@ export function AdminReservationForm({ onSuccess, initialData }: AdminReservatio
                         )}
                         <p className="mt-1 flex items-center gap-1"><Clock className="w-3 h-3" /> {details.startTime} - {details.endTime}</p>
 
-                        {initialData && (
+                        {initialData && !isCopyMode && (
                             <div className="mt-2 text-red-600 font-bold text-xs">
                                 ⚠️ 주의: 기존 예약({initialData.group_id ? '그룹 전체' : '해당 건'})은 삭제되고 위 내용으로 새로 생성됩니다.
+                            </div>
+                        )}
+                        {initialData && isCopyMode && (
+                            <div className="mt-2 text-blue-600 font-bold text-xs">
+                                ℹ️ 기존 예약 정보를 바탕으로 새로운 예약을 생성합니다. (기존 예약 유지됨)
                             </div>
                         )}
                     </div>
@@ -546,7 +558,7 @@ export function AdminReservationForm({ onSuccess, initialData }: AdminReservatio
                         onClick={handleSubmit}
                         className="w-full bg-gray-900 text-white py-2 rounded font-bold disabled:opacity-50"
                     >
-                        {loading ? <Loader2 className="animate-spin w-5 h-5 mx-auto" /> : (initialData ? "예약 수정 완료" : "예약 생성 완료")}
+                        {loading ? <Loader2 className="animate-spin w-5 h-5 mx-auto" /> : (initialData && !isCopyMode ? "예약 수정 완료" : "예약 생성 완료")}
                     </button>
                     <button onClick={() => setStep("details")} className="w-full text-gray-500 text-sm">뒤로가기</button>
                 </div>

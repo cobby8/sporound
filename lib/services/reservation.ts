@@ -18,9 +18,15 @@ export interface ReservationDB {
     // Added for display
     team_name?: string;
     guest_name?: string;
+    guest_phone?: string; // Added field
+    people_count?: number; // Added field
+    total_price?: number; // Added field
+    group_id?: string; // Added field
+    recurrence_rule?: any; // Added field
     color?: string;
     profiles?: {
         name: string;
+        phone?: string; // Added field
     };
 }
 
@@ -35,6 +41,12 @@ const DAYS_KEY_MAP = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
  * Fetches reservations for 7 days starting from `startDate` and returns them in the `TimeSlot` format for UI.
  * @param startDateStr "YYYY-MM-DD" formatted string
  */
+// Helper: "HH:mm" -> minutes from midnight
+const toMinutes = (timeStr: string) => {
+    const [h, m] = timeStr.split(':').map(Number);
+    return h * 60 + m;
+};
+
 export async function getWeeklySchedule(startDateStr: string): Promise<TimeSlot[]> {
     if (!supabase) return [];
 
@@ -44,32 +56,40 @@ export async function getWeeklySchedule(startDateStr: string): Promise<TimeSlot[
     const endDateStr = endDate.toISOString().split('T')[0];
 
     // 1. Fetch reservations for the week range
-    const { data: reservations, error } = await supabase
-        .from('reservations')
-        .select(`
-            *,
-            profiles ( name ),
-            courts ( name )
-        `)
-        .gte('date', startDateStr)
-        .lt('date', endDateStr)
-        .neq('status', 'canceled')
-        .neq('status', 'rejected');
+    let reservations: any[] | null = [];
+    try {
+        const result = await supabase
+            .from('reservations')
+            .select(`
+                *,
+                profiles ( name ),
+                courts ( name )
+            `)
+            .gte('date', startDateStr)
+            .lt('date', endDateStr)
+            .neq('status', 'canceled')
+            .neq('status', 'rejected');
 
-    if (error) {
-        console.error('Error fetching reservations:', error);
+        if (result.error) {
+            console.error('Error fetching reservations:', result.error);
+            return [];
+        }
+        reservations = result.data;
+    } catch (e) {
+        console.error('Unexpected error fetching reservations:', e);
         return [];
     }
 
-    // 2. Build empty schedule skeleton (6:00 - 24:00)
+    // 2. Build empty schedule skeleton (6:00 - 24:00, 30-min intervals)
     const timeSlots: TimeSlot[] = [];
     const START_HOUR = 6;
     const END_HOUR = 24;
 
     for (let hour = START_HOUR; hour < END_HOUR; hour++) {
-        const timeStr = `${hour}:00`;
-        const slot: TimeSlot = {
-            time: timeStr,
+        // :00 slot
+        const timeStr00 = `${hour < 10 ? '0' : ''}${hour}:00`;
+        timeSlots.push({
+            time: timeStr00,
             courts: {
                 mon: { pink: emptyCell(), mint: emptyCell() },
                 tue: { pink: emptyCell(), mint: emptyCell() },
@@ -79,41 +99,51 @@ export async function getWeeklySchedule(startDateStr: string): Promise<TimeSlot[
                 sat: { pink: emptyCell(), mint: emptyCell() },
                 sun: { pink: emptyCell(), mint: emptyCell() },
             }
-        };
-        timeSlots.push(slot);
+        });
+
+        // :30 slot
+        const timeStr30 = `${hour < 10 ? '0' : ''}${hour}:30`;
+        timeSlots.push({
+            time: timeStr30,
+            courts: {
+                mon: { pink: emptyCell(), mint: emptyCell() },
+                tue: { pink: emptyCell(), mint: emptyCell() },
+                wed: { pink: emptyCell(), mint: emptyCell() },
+                thu: { pink: emptyCell(), mint: emptyCell() },
+                fri: { pink: emptyCell(), mint: emptyCell() },
+                sat: { pink: emptyCell(), mint: emptyCell() },
+                sun: { pink: emptyCell(), mint: emptyCell() },
+            }
+        });
     }
 
+    const START_MINUTES = START_HOUR * 60; // 360 (06:00)
+
     // 3. Fill in reservations
-    // We iterate through all reservations and populate the corresponding cells
     reservations?.forEach((res: ReservationDB) => {
         if (!res.courts) return;
 
         const resDate = new Date(res.date);
-
-        // Find which day index (0-6) relative to start date
-        // Note: This logic assumes the dashboard always starts from a specific day (like Monday) or we just map by date differnce.
-        // The current UI just assumes 'mon', 'tue' etc. 
-        // We need to map the reservation date to the correct day column.
-
-        // Simple hack: getDay() 0=Sun, 1=Mon...
-        // But our `DAYS_KEY_MAP` is 0=Mon, 6=Sun.
         let dayIndex = resDate.getDay() - 1;
-        if (dayIndex === -1) dayIndex = 6; // Sunday
-
-        // Check if this reservation belongs to the current week logic?
-        // Ideally we should trust the date filter.
-
-        const dayKey = DAYS_KEY_MAP[dayIndex]; // e.g., 'mon'
+        if (dayIndex === -1) dayIndex = 6; // Sunday -> 6
+        const dayKey = DAYS_KEY_MAP[dayIndex];
 
         const cName = res.courts.name?.toLowerCase();
         const courtName = (cName === 'pink' || cName === '핑크') ? 'pink' : 'mint';
-        const startH = parseInt(res.start_time.split(':')[0]);
-        const endH = parseInt(res.end_time.split(':')[0]);
-        const duration = endH - startH;
 
-        // Find the starting row
-        const startRowIndex = startH - START_HOUR;
+        const startMinutes = toMinutes(res.start_time);
+        const endMinutes = toMinutes(res.end_time);
+
+        // Find start index
+        // timeSlots[0] is 06:00 (360 min)
+        // index = (minutes - 360) / 30
+        const startRowIndex = (startMinutes - START_MINUTES) / 30;
+
+        // If out of bounds or not an integer (though 30-min aligned should be int)
         if (startRowIndex < 0 || startRowIndex >= timeSlots.length) return;
+
+        const durationMinutes = endMinutes - startMinutes;
+        const rowSpan = Math.ceil(durationMinutes / 30);
 
         // Apply to the start cell
         const targetCell = timeSlots[startRowIndex].courts[dayKey][courtName];
@@ -122,11 +152,12 @@ export async function getWeeklySchedule(startDateStr: string): Promise<TimeSlot[
         const displayText = res.team_name || res.profiles?.name || res.guest_name || '예약됨';
 
         targetCell.text = displayText;
-        targetCell.rowSpan = duration;
-        targetCell.color = res.color; // Pass custom color if exists
+        targetCell.rowSpan = rowSpan;
+        targetCell.color = res.color;
+        targetCell.reservationId = res.id;
 
-        // Mark subsequent cells as hidden (rowSpan = 0)
-        for (let i = 1; i < duration; i++) {
+        // Mark subsequent cells as hidden
+        for (let i = 1; i < rowSpan; i++) {
             if (startRowIndex + i < timeSlots.length) {
                 const hiddenCell = timeSlots[startRowIndex + i].courts[dayKey][courtName];
                 hiddenCell.rowSpan = 0;
@@ -146,6 +177,12 @@ function emptyCell(): CellData {
  * Supports filtering by page or date if needed later.
  */
 export async function getAdminReservations() {
+    // Calculate dynamic start date (e.g., 6 months ago) to ensure we fetch relevant recent/future data
+    // within the 10k limit, rather than filling it with old 2024 history.
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+    const startDateStr = sixMonthsAgo.toISOString().split('T')[0];
+
     const { data, error } = await supabase
         .from('reservations')
         .select(`
@@ -153,7 +190,11 @@ export async function getAdminReservations() {
             profiles ( email, name, phone ),
             courts ( name )
         `)
-        .order('created_at', { ascending: false });
+        .order('date', { ascending: true }) // Ascending: Recent Past -> Future
+        .order('created_at', { ascending: true })
+        .gte('date', startDateStr) // Filter dynamic range
+        .range(0, 9999);
+
 
     if (error) throw error;
     return data;

@@ -66,9 +66,17 @@ export function ReservationModal({
         if (!isOpen) return;
 
         const calculatePrice = () => {
-            const startHour = parseInt(startTime.split(':')[0]);
-            const endHour = parseInt(endTime.split(':')[0]);
-            const hours = endHour - startHour;
+            // Helper: "HH:mm" -> minutes
+            const toMinutes = (timeStr: string) => {
+                const [h, m] = timeStr.split(':').map(Number);
+                return h * 60 + m;
+            };
+
+            const startMinutes = toMinutes(startTime);
+            const endMinutes = toMinutes(endTime);
+            const durationMinutes = endMinutes - startMinutes;
+            const hours = durationMinutes / 60; // Float (e.g. 1.5)
+
             setDuration(hours);
 
             const isWeekend = selectedDay === '토요일' || selectedDay === '일요일';
@@ -78,13 +86,13 @@ export function ReservationModal({
             let waitingRoomPrice = 0;
 
             if (isEvent) {
-                // Event Pricing
+                // Event Pricing (Assume Flat Rate per hour? or per event block?)
+                // Usually event pricing is per hour block.
                 if (formData.peopleCount >= 200) unitPrice = 400000;
                 else if (formData.peopleCount >= 150) unitPrice = 300000;
                 else if (formData.peopleCount >= 100) unitPrice = 250000;
                 else unitPrice = selectedCourt === 'pink' ? 110000 : 90000;
 
-                // Event waiting room included? Table says "Rental Included" (대관료 포함) for Event
                 waitingRoomPrice = 0;
             } else {
                 // Standard Pricing
@@ -92,8 +100,10 @@ export function ReservationModal({
                     waitingRoomPrice = 20000;
                     let basePrice = selectedCourt === 'pink' ? 85000 : 75000;
 
-                    // Discount Logic for Daily
+                    // Discount Logic for Daily (Based on Start Time)
                     let isDiscount = false;
+                    const startHour = Math.floor(startMinutes / 60);
+
                     if (isWeekend) {
                         if (startHour < 8 || startHour >= 21) isDiscount = true;
                     } else {
@@ -132,7 +142,7 @@ export function ReservationModal({
                 }
             }
 
-            setTotalPrice(price);
+            setTotalPrice(Math.floor(price / 100) * 100); // Round down to 100 won
         };
 
         calculatePrice();

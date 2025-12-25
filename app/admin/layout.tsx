@@ -51,7 +51,7 @@ export default function AdminLayout({
     return (
         <div className="min-h-screen bg-gray-50">
             {/* Admin Header */}
-            <header className="bg-white shadow">
+            <header className="bg-white shadow sticky top-16 z-30">
                 <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8 flex justify-between items-center">
                     <div className="flex items-center gap-8">
                         <h1 className="text-2xl font-bold text-gray-900">관리자 대시보드</h1>
@@ -59,9 +59,7 @@ export default function AdminLayout({
                             <a href="/admin" className="text-gray-600 hover:text-pink-600 px-3 py-2 rounded-md text-sm font-medium">
                                 예약 목록
                             </a>
-                            <a href="/admin/calendar" className="text-gray-600 hover:text-pink-600 px-3 py-2 rounded-md text-sm font-medium">
-                                캘린더 (주간)
-                            </a>
+
                             <a href="/admin/users" className="text-gray-600 hover:text-pink-600 px-3 py-2 rounded-md text-sm font-medium">
                                 회원 관리
                             </a>
