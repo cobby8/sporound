@@ -249,7 +249,7 @@ export function ScheduleBoard({ schedule, startDate, onOccupiedCellClick, onRese
             <div className="w-full max-w-[1400px] mx-auto p-2 md:p-4">
                 {/* Header Title */}
                 <h2 className="text-2xl font-bold mb-6 text-center text-gray-800">
-                    체육관 대관 현황 <span className="text-base font-normal text-gray-500 ml-2">({startDate} 주간)</span>
+                    체육관 대관 현황 <span className="text-base font-normal text-gray-900 ml-2">({startDate} 주간)</span>
                 </h2>
 
                 {/* Mobile Day Selector */}
@@ -305,17 +305,17 @@ export function ScheduleBoard({ schedule, startDate, onOccupiedCellClick, onRese
                             )}
                             style={{ top: `${headerOffset}px` }}
                         >
-                            <span className="text-gray-900">{day.label}</span>
-                            <span className="text-xs text-gray-900 font-normal mt-1">
+                            <span className="text-lg text-gray-900 font-bold">
                                 {formatDateShort(getDayDate(dIdx))}
                             </span>
+                            <span className="text-xs text-gray-900 font-normal mt-1">{day.label}</span>
                         </div>
                     ))}
 
                     {/* Court Sub-Headers (Pink/Mint) */}
                     {/* Time Spacer Row for Courts (Just another cell in col 1) */}
                     <div
-                        className="bg-gray-50 border-r border-b border-gray-200 text-xs text-center flex items-center justify-center font-semibold sticky z-20 h-[30px]"
+                        className="bg-gray-50 border-r border-b border-gray-200 text-xs text-center flex items-center justify-center font-semibold sticky z-20 h-[30px] text-gray-900"
                         style={{ top: `${headerOffset + 60}px` }}
                     >
                         코트
