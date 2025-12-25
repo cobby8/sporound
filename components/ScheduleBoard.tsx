@@ -174,16 +174,24 @@ export function ScheduleBoard({ schedule, startDate, onOccupiedCellClick, onRese
 
     // Touch Drag Handling
     // Touch Drag Handling
+    // --- POINTER EVENTS IMPLEMENTATION (Robust Scroll Lock & Unified Logic) ---
+
     const longPressTimer = useRef<NodeJS.Timeout | null>(null);
     const startTouchPos = useRef<{ x: number, y: number } | null>(null);
+    const draggedPointerId = useRef<number | null>(null);
 
-    const handleTouchStart = (e: React.TouchEvent, time: string, dayIndex: number, court: "pink" | "mint", isOccupied: boolean, reservationId?: string) => {
+    // Consolidated Handler for Interaction Start
+    const handlePointerDown = (e: React.PointerEvent, time: string, dayIndex: number, court: "pink" | "mint", isOccupied: boolean, reservationId?: string) => {
         if (isOccupied) return;
 
-        const touch = e.touches[0];
-        startTouchPos.current = { x: touch.clientX, y: touch.clientY };
+        // Only handle primary pointer (mouse left click or first touch)
+        if (!e.isPrimary) return;
 
-        // Start Timer for Long Press (1s -> 800ms)
+        const { clientX, clientY, pointerId } = e;
+        startTouchPos.current = { x: clientX, y: clientY };
+        draggedPointerId.current = pointerId;
+
+        // Start Timer for Long Press (800ms)
         longPressTimer.current = setTimeout(() => {
             const targetDate = formatDateFull(getDayDate(dayIndex));
             const startSlot = { time, dayIndex, court, date: targetDate };
@@ -192,37 +200,31 @@ export function ScheduleBoard({ schedule, startDate, onOccupiedCellClick, onRese
             setDragStart(startSlot);
             setSelectedSlots([startSlot]); // Start fresh selection on drag start
 
-            // Haptic feedback if available
+            // CRITICAL: Capture the pointer! This prevents the browser from taking over for scrolling.
+            // This effectively "locks" the scroll for the duration of this gesture.
+            const target = e.target as HTMLElement;
+            if (target && target.setPointerCapture) {
+                target.setPointerCapture(pointerId);
+            }
+
+            // Haptic feedback
             if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50);
         }, 800);
     };
 
-    const handleTouchEnd = () => {
-        if (longPressTimer.current) {
-            clearTimeout(longPressTimer.current);
-            longPressTimer.current = null;
-        }
-        startTouchPos.current = null;
-        // If we were dragging, stop.
-        if (isDragging) {
-            setIsDragging(false);
-            setDragStart(null);
-        }
-    };
+    const handlePointerMove = (e: React.PointerEvent) => {
+        if (draggedPointerId.current !== e.pointerId) return;
 
-    const handleTouchMove = (e: React.TouchEvent) => {
-        const touch = e.touches[0];
-        const currentX = touch.clientX;
-        const currentY = touch.clientY;
+        const currentX = e.clientX;
+        const currentY = e.clientY;
 
-        // If not dragging, check if we should cancel timer (Threshold check)
+        // 1. If NOT dragging yet: Check threshold to cancel timer (Allow Scroll)
         if (!isDragging) {
             if (longPressTimer.current && startTouchPos.current) {
                 const diffX = Math.abs(currentX - startTouchPos.current.x);
                 const diffY = Math.abs(currentY - startTouchPos.current.y);
 
-                // If moved more than 10px, it's a scroll -> CANCEL timer
-                // This allows small wobbles but detects real scrolling intent
+                // If moved > 10px, it's a SCROLL/PAN. Cancel the timer.
                 if (diffX > 10 || diffY > 10) {
                     clearTimeout(longPressTimer.current);
                     longPressTimer.current = null;
@@ -232,63 +234,86 @@ export function ScheduleBoard({ schedule, startDate, onOccupiedCellClick, onRese
             return;
         }
 
-        // If dragging, PREVENT DEFAULT to stop scrolling
-        if (e.cancelable) {
-            e.preventDefault();
-        }
+        // 2. If Dragging: Process Selection
+        // Since we captured pointer, we get events even if we leave the cell.
 
-        // Find element under touch
+        // Find element under pointer
         const element = document.elementFromPoint(currentX, currentY);
-
-        // We need to identify the slot from the element. 
-        // We can add data attributes to the cell divs to make this easier.
         const cell = element?.closest('[data-slot-time]');
+
         if (cell) {
             const time = cell.getAttribute('data-slot-time');
-            const dayIndex = Number(cell.getAttribute('data-day-index'));
+            const dayIndexVal = Number(cell.getAttribute('data-day-index'));
             const court = cell.getAttribute('data-court') as "pink" | "mint";
 
-            if (time && !isNaN(dayIndex) && court) {
-                // Check if occupied? The selection logic filters occupied anyway.
-                handleCellMouseEnter(time, dayIndex, court, false);
+            if (time && !isNaN(dayIndexVal) && court) {
+                handleCellMouseEnter(time, dayIndexVal, court, false);
             }
         }
     };
 
-    const handleCellClick = (time: string, dayIndex: number, court: "pink" | "mint", isOccupied: boolean, reservationId?: string, e?: React.MouseEvent) => {
+    const handlePointerUp = (e: React.PointerEvent, time: string, dayIndex: number, court: "pink" | "mint", isOccupied: boolean, reservationId?: string) => {
+        if (draggedPointerId.current !== e.pointerId) return;
+
+        // Cleanup
+        if (longPressTimer.current) {
+            clearTimeout(longPressTimer.current);
+            longPressTimer.current = null;
+        }
+        startTouchPos.current = null;
+        draggedPointerId.current = null;
+        const target = e.target as HTMLElement;
+        if (target && target.releasePointerCapture) {
+            target.releasePointerCapture(e.pointerId);
+        }
+
+        if (isDragging) {
+            // End of Drag Gesture
+            setIsDragging(false);
+            setDragStart(null);
+            return;
+        }
+
+        // UNIFIED TAP LOGIC: If we reached here, it wasn't a drag, and it wasn't cancelled (scrolled).
+        // Treat as CLICK / TAP.
+        handleInteraction(time, dayIndex, court, isOccupied, reservationId);
+    };
+
+    const handlePointerCancel = (e: React.PointerEvent) => {
+        if (longPressTimer.current) clearTimeout(longPressTimer.current);
+        setIsDragging(false);
+        setDragStart(null);
+        startTouchPos.current = null;
+        draggedPointerId.current = null;
+    };
+
+    // Unified Selection Logic (Replaces handleCellClick)
+    const handleInteraction = (time: string, dayIndex: number, court: "pink" | "mint", isOccupied: boolean, reservationId?: string) => {
         if (isOccupied) {
             if (reservationId && onOccupiedCellClick) {
-                onOccupiedCellClick(reservationId, e);
+                // Pass mock event or ignore event arg
+                onOccupiedCellClick(reservationId);
             }
             return;
         }
 
-        // Logic 3: Toggle / Range Selection
         const targetDate = formatDateFull(getDayDate(dayIndex));
         const clickedSlot = { time, dayIndex, court, date: targetDate };
 
-        // Check if already selected
+        // Toggle Logic
         const isAlreadySelected = selectedSlots.some(s => s.time === time && s.dayIndex === dayIndex && s.court === court);
 
         if (isAlreadySelected) {
-            // "Select selected slot again to deselect"
-            // If it's the ONLY selected slot, clear all.
-            // If there are multiple, deselect just this one? Or clear all? 
-            // User: "Selecting selected slot again deselects it"
-            // If it's part of a range, breaking the range might be weird.
-            // Let's implement toggle.
             const newSelection = selectedSlots.filter(s => !(s.time === time && s.court === court && s.dayIndex === dayIndex));
             setSelectedSlots(newSelection);
             return;
         }
 
-        // Feature 2: Range Click (Select one -> Select another)
+        // Range Logic
         if (selectedSlots.length === 1) {
             const start = selectedSlots[0];
-
-            // Check if same day and same court
-            if (start.dayIndex === dayIndex && start.court === court) {
-                // Determine range
+            // Ensure Strict Type Matching
+            if (Number(start.dayIndex) === Number(dayIndex) && start.court === court) {
                 const startMins = toMinutes(start.time);
                 const endMins = toMinutes(time);
                 const min = Math.min(startMins, endMins);
@@ -296,45 +321,33 @@ export function ScheduleBoard({ schedule, startDate, onOccupiedCellClick, onRese
 
                 const rangeSlots: typeof selectedSlots = [];
 
-                // Fill range
                 schedule.forEach(slot => {
                     const t = toMinutes(slot.time);
                     if (t >= min && t <= max) {
-                        // Access the correct day data
                         const dayKey = DAYS[dayIndex]?.key;
                         if (!dayKey) return;
-
                         const courtData = court === 'pink' ? slot.courts[dayKey].pink : slot.courts[dayKey].mint;
 
-                        // Only add if not occupied
                         if (!courtData?.text && !courtData?.reservationId) {
                             rangeSlots.push({
                                 time: slot.time,
-                                dayIndex,
-                                court,
+                                dayIndex: dayIndex,
+                                court: court,
                                 date: targetDate
                             });
                         }
                     }
                 });
 
-                setSelectedSlots(rangeSlots);
-                return;
+                if (rangeSlots.length > 0) {
+                    setSelectedSlots(rangeSlots);
+                    return;
+                }
             }
         }
 
-        // Default: Add single slot or start new selection? 
-        // User said: "Two actions both work". 
-        // If I click A then B, it selects range.
-        // If I click A then C (different day), it should probably just switch to C.
-        if (selectedSlots.length > 0 && (selectedSlots[0].dayIndex !== dayIndex || selectedSlots[0].court !== court)) {
-            // Reset selection if different context
-            setSelectedSlots([clickedSlot]);
-        } else {
-            // If length > 1 (already a range), and click new one on same day/court -> Reset to new one?
-            // Yes, standard behavior.
-            setSelectedSlots([clickedSlot]);
-        }
+        // Default Click
+        setSelectedSlots([clickedSlot]);
     };
 
     const fromMinutes = (minutes: number) => {
