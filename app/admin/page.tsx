@@ -8,8 +8,8 @@ import { ko } from "date-fns/locale";
 import { CheckCircle, XCircle, Clock, AlertCircle, Plus, ChevronDown, ChevronUp, Trash2, Users, RefreshCw, X, Copy, List, Calendar as CalendarIcon, AlertTriangle, Edit2 } from "lucide-react";
 import { ScheduleBoard } from "@/components/ScheduleBoard";
 import { AdminReservationForm } from "@/components/admin/AdminReservationForm";
+import { AdminReservationEditModal } from "@/components/admin/AdminReservationEditModal";
 import { CalendarDetailPopover } from "@/components/admin/CalendarDetailPopover";
-import { ReservationEditModal } from "@/components/admin/ReservationEditModal";
 
 
 import { generateScheduleData } from "@/lib/data";
@@ -305,18 +305,53 @@ export default function AdminPage() {
         return format(start, 'yyyy-MM-dd');
     };
 
-    const getStatusBadge = (status: string) => {
-        switch (status) {
-            case 'confirmed':
-                return <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800"><CheckCircle className="w-3 h-3" /> 승인됨</span>;
-            case 'rejected':
-                return <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800"><XCircle className="w-3 h-3" /> 거절됨</span>;
-            case 'canceled':
-                return <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">취소됨</span>;
-            case 'pending':
-                return <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800"><Clock className="w-3 h-3" /> 대기중</span>;
-            default: return null;
+    const getNewStatusBadge = (res: Reservation) => {
+        const now = new Date();
+        const resDate = new Date(`${res.date}T${res.start_time}`);
+        const resEnd = new Date(`${res.date}T${res.end_time}`);
+
+        const badges = [];
+
+        // 1. Regular Badge
+        if (res.recurrence_rule) {
+            badges.push(
+                <span key="regular" className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-purple-100 text-purple-800 mr-1">
+                    정기대관
+                </span>
+            );
         }
+
+        // 2. Status Badge
+        if (res.status === 'pending') {
+            badges.push(
+                <span key="pending" className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-yellow-100 text-yellow-800">
+                    승인요청
+                </span>
+            );
+        } else if (res.status === 'confirmed') {
+            if (resEnd < now) {
+                // Past - Empty (as requested: "Used -> Empty")
+            } else if (resDate > now) {
+                badges.push(
+                    <span key="before_use" className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-green-100 text-green-800">
+                        사용전
+                    </span>
+                );
+            } else {
+                // Currently In Use
+                badges.push(
+                    <span key="in_use" className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-blue-100 text-blue-800">
+                        사용중
+                    </span>
+                );
+            }
+        } else if (res.status === 'canceled') {
+            badges.push(<span key="canceled" className="text-xs text-gray-500 font-bold">취소됨</span>);
+        } else if (res.status === 'rejected') {
+            badges.push(<span key="rejected" className="text-xs text-red-500 font-bold">거절됨</span>);
+        }
+
+        return <div className="flex flex-wrap gap-1">{badges}</div>;
     };
 
     return (
@@ -489,7 +524,7 @@ export default function AdminPage() {
                                             const res = item.data;
                                             return (
                                                 <tr key={res.id} className="hover:bg-gray-50">
-                                                    <td className="px-6 py-4 whitespace-nowrap">{getStatusBadge(res.status)}</td>
+                                                    <td className="px-6 py-4 whitespace-nowrap">{getNewStatusBadge(res)}</td>
                                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                                         <div className="font-medium">{format(new Date(res.date), 'yyyy-MM-dd (eee)', { locale: ko })}</div>
                                                         <div className="text-gray-500 text-xs">{res.start_time.slice(0, 5)} - {res.end_time.slice(0, 5)}</div>
@@ -516,6 +551,18 @@ export default function AdminPage() {
                                                                     className="text-green-600 hover:bg-green-50 bg-white border border-green-200 px-2 py-1 rounded text-xs font-bold shadow-sm"
                                                                 >
                                                                     승인
+                                                                </button>
+                                                            )}
+                                                            {res.status === 'confirmed' && (
+                                                                <button
+                                                                    onClick={() => {
+                                                                        if (confirm("승인을 취소하고 대기 상태로 되돌리시겠습니까?")) {
+                                                                            handleUpdateReservation(res.id, { status: 'pending' });
+                                                                        }
+                                                                    }}
+                                                                    className="text-orange-600 hover:bg-orange-50 bg-white border border-orange-200 px-2 py-1 rounded text-xs font-bold shadow-sm"
+                                                                >
+                                                                    승인취소
                                                                 </button>
                                                             )}
                                                             <button onClick={() => handleCopy(res)} className="text-gray-600 hover:text-gray-900 bg-gray-100 px-2 py-1 rounded text-xs flex items-center gap-1"><Copy className="w-3 h-3" /> 복사</button>
@@ -573,7 +620,7 @@ export default function AdminPage() {
                                                     {isExpanded && item.items.map((res) => (
                                                         <tr key={res.id} className="bg-gray-50/50 hover:bg-gray-100">
                                                             <td className="px-6 py-2 pl-10 whitespace-nowrap text-xs">
-                                                                {getStatusBadge(res.status)}
+                                                                {getNewStatusBadge(res)}
                                                             </td>
                                                             <td className="px-6 py-2 whitespace-nowrap text-xs text-gray-700">
                                                                 {format(new Date(res.date), 'yyyy-MM-dd (eee)', { locale: ko })} {res.start_time.slice(0, 5)}
@@ -663,11 +710,11 @@ export default function AdminPage() {
             }
 
             {/* Shared Edit Modal */}
-            <ReservationEditModal
+            <AdminReservationEditModal
                 reservation={selectedReservation}
                 isOpen={!!selectedReservation}
                 onClose={() => setSelectedReservation(null)}
-                onSuccess={() => {
+                onUpdate={() => {
                     fetchReservations();
                     setSelectedReservation(null);
                 }}

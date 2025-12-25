@@ -149,19 +149,34 @@ export function CalendarDetailPopover({ reservation, position, onClose, onEdit, 
 
                 {/* Footer Buttons */}
                 <div className="flex items-center justify-end gap-2 pt-2">
-                    {reservation.status === 'pending' ? (
+                    {reservation.status === 'pending' && (
                         <button
                             onClick={() => onApprove(reservation, editFee, editPayStatus)}
                             className="mr-auto px-4 py-1.5 bg-green-500 hover:bg-green-600 text-white text-sm font-bold rounded-lg transition-colors shadow-sm"
                         >
                             승인 및 확정
                         </button>
-                    ) : (
+                    )}
+                    {reservation.status !== 'pending' && (
                         <button
                             onClick={() => onUpdate && onUpdate(reservation, { final_fee: editFee, payment_status: editPayStatus })}
                             className="mr-auto px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold rounded-lg transition-colors shadow-sm"
                         >
                             저장
+                        </button>
+                    )}
+                    {reservation.status === 'confirmed' && (
+                        <button
+                            onClick={() => {
+                                if (confirm("승인을 취소하고 대기 상태로 되돌리시겠습니까?")) {
+                                    onUpdate && onUpdate(reservation, { status: 'pending' });
+                                    onClose(); // Optional: close or keep open data
+                                }
+                            }}
+                            className="bg-orange-50 border border-orange-200 text-orange-600 hover:bg-orange-100 p-2 rounded-full transition-colors"
+                            title="승인 취소"
+                        >
+                            <Clock className="w-4 h-4" />
                         </button>
                     )}
                     <button

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { X, Calendar, User, Phone, Mail, Clock, CheckCircle, XCircle, AlertCircle } from "lucide-react";
+import { X, Calendar, User, Phone, Mail, Clock, CheckCircle, XCircle, AlertCircle, Edit2 } from "lucide-react";
+import { AdminReservationEditModal } from "@/components/admin/AdminReservationEditModal";
 import { format } from "date-fns";
 import { ko } from "date-fns/locale";
 
@@ -13,6 +14,7 @@ interface UserDetailModalProps {
 export function UserDetailModal({ isOpen, onClose, user }: UserDetailModalProps) {
     const [reservations, setReservations] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [selectedReservation, setSelectedReservation] = useState<any>(null);
 
     useEffect(() => {
         if (isOpen && user?.id) {
@@ -123,6 +125,7 @@ export function UserDetailModal({ isOpen, onClose, user }: UserDetailModalProps)
                                         <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">시간</th>
                                         <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">코트</th>
                                         <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">상태</th>
+                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">결제</th>
                                         <th className="px-4 py-2 text-right text-xs font-medium text-gray-500">관리</th>
                                     </tr>
                                 </thead>
@@ -141,22 +144,37 @@ export function UserDetailModal({ isOpen, onClose, user }: UserDetailModalProps)
                                             <td className="px-4 py-2">
                                                 {getStatusBadge(res.status)}
                                             </td>
+                                            <td className="px-4 py-2 text-sm">
+                                                <div className="font-bold">{res.final_fee ? `₩${res.final_fee.toLocaleString()}` : (res.total_price ? `₩${res.total_price.toLocaleString()}` : '-')}</div>
+                                                <div className={`text-xs font-bold ${res.payment_status === 'paid' ? 'text-green-600' : res.payment_status === 'adjustment_requested' ? 'text-yellow-600' : 'text-red-500'}`}>
+                                                    {res.payment_status === 'paid' ? '완료' : res.payment_status === 'adjustment_requested' ? '조정요청' : '미납'}
+                                                </div>
+                                            </td>
                                             <td className="px-4 py-2 text-right">
-                                                <button
-                                                    onClick={async () => {
-                                                        if (!confirm("정말 이 예약을 삭제하시겠습니까?")) return;
-                                                        const { error } = await supabase.from('reservations').delete().eq('id', res.id);
-                                                        if (error) alert("삭제 실패: " + error.message);
-                                                        else {
-                                                            alert("삭제되었습니다.");
-                                                            fetchUserReservations();
-                                                        }
-                                                    }}
-                                                    className="text-red-500 hover:text-red-700 bg-red-50 p-1.5 rounded transition-colors"
-                                                    title="예약 삭제"
-                                                >
-                                                    <XCircle className="w-4 h-4" />
-                                                </button>
+                                                <div className="flex justify-end gap-1">
+                                                    <button
+                                                        onClick={() => setSelectedReservation(res)}
+                                                        className="text-blue-500 hover:text-blue-700 bg-blue-50 p-1.5 rounded transition-colors"
+                                                        title="예약 수정"
+                                                    >
+                                                        <Edit2 className="w-4 h-4" />
+                                                    </button>
+                                                    <button
+                                                        onClick={async () => {
+                                                            if (!confirm("정말 이 예약을 삭제하시겠습니까?")) return;
+                                                            const { error } = await supabase.from('reservations').delete().eq('id', res.id);
+                                                            if (error) alert("삭제 실패: " + error.message);
+                                                            else {
+                                                                alert("삭제되었습니다.");
+                                                                fetchUserReservations();
+                                                            }
+                                                        }}
+                                                        className="text-red-500 hover:text-red-700 bg-red-50 p-1.5 rounded transition-colors"
+                                                        title="예약 삭제"
+                                                    >
+                                                        <XCircle className="w-4 h-4" />
+                                                    </button>
+                                                </div>
                                             </td>
                                         </tr>
                                     ))}
@@ -166,6 +184,18 @@ export function UserDetailModal({ isOpen, onClose, user }: UserDetailModalProps)
                     )}
                 </div>
             </div>
+
+            {/* Edit Modal */}
+            <AdminReservationEditModal
+                reservation={selectedReservation}
+                isOpen={!!selectedReservation}
+                onClose={() => setSelectedReservation(null)}
+                onUpdate={() => {
+                    fetchUserReservations();
+                    setSelectedReservation(null);
+                }}
+            />
         </div>
+    </div >
     );
 }
