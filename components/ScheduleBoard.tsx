@@ -175,9 +175,13 @@ export function ScheduleBoard({ schedule, startDate, onOccupiedCellClick, onRese
     // Touch Drag Handling
     // Touch Drag Handling
     const longPressTimer = useRef<NodeJS.Timeout | null>(null);
+    const startTouchPos = useRef<{ x: number, y: number } | null>(null);
 
     const handleTouchStart = (e: React.TouchEvent, time: string, dayIndex: number, court: "pink" | "mint", isOccupied: boolean, reservationId?: string) => {
         if (isOccupied) return;
+
+        const touch = e.touches[0];
+        startTouchPos.current = { x: touch.clientX, y: touch.clientY };
 
         // Start Timer for Long Press (1s -> 800ms)
         longPressTimer.current = setTimeout(() => {
@@ -198,6 +202,7 @@ export function ScheduleBoard({ schedule, startDate, onOccupiedCellClick, onRese
             clearTimeout(longPressTimer.current);
             longPressTimer.current = null;
         }
+        startTouchPos.current = null;
         // If we were dragging, stop.
         if (isDragging) {
             setIsDragging(false);
@@ -206,19 +211,34 @@ export function ScheduleBoard({ schedule, startDate, onOccupiedCellClick, onRese
     };
 
     const handleTouchMove = (e: React.TouchEvent) => {
-        // If not dragging, it means long press hasn't fired yet. 
-        // If user moves finger BEFORE timer fires, it's a scroll. Cancel timer.
+        const touch = e.touches[0];
+        const currentX = touch.clientX;
+        const currentY = touch.clientY;
+
+        // If not dragging, check if we should cancel timer (Threshold check)
         if (!isDragging) {
-            if (longPressTimer.current) {
-                clearTimeout(longPressTimer.current);
-                longPressTimer.current = null;
+            if (longPressTimer.current && startTouchPos.current) {
+                const diffX = Math.abs(currentX - startTouchPos.current.x);
+                const diffY = Math.abs(currentY - startTouchPos.current.y);
+
+                // If moved more than 10px, it's a scroll -> CANCEL timer
+                // This allows small wobbles but detects real scrolling intent
+                if (diffX > 10 || diffY > 10) {
+                    clearTimeout(longPressTimer.current);
+                    longPressTimer.current = null;
+                    startTouchPos.current = null;
+                }
             }
             return;
         }
 
+        // If dragging, PREVENT DEFAULT to stop scrolling
+        if (e.cancelable) {
+            e.preventDefault();
+        }
+
         // Find element under touch
-        const touch = e.touches[0];
-        const element = document.elementFromPoint(touch.clientX, touch.clientY);
+        const element = document.elementFromPoint(currentX, currentY);
 
         // We need to identify the slot from the element. 
         // We can add data attributes to the cell divs to make this easier.
