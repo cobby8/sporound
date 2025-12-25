@@ -681,15 +681,16 @@ export function ScheduleBoard({ schedule, startDate, onOccupiedCellClick, onRese
                 selectedCourt={modalState.court}
             />
 
-            {/* Floating Reservation Button */}
-            {
-                selectedSlots.length > 0 && !modalState.isOpen && (
-                    <div className="fixed bottom-8 left-1/2 transform -translate-x-1/2 z-50 animate-in fade-in slide-in-from-bottom-4 w-full max-w-[200px]">
-                        <button
-                            onClick={handleReserveClick}
-                            className="w-full bg-gray-900/95 backdrop-blur-md text-white py-3 px-6 rounded-full shadow-2xl border border-white/10 hover:bg-gray-800 transition-all flex flex-col items-center justify-center gap-0.5"
-                        >
-                            <span className="text-[10px] text-gray-400 font-medium tracking-wide font-mono">
+            {/* Floating Reservation Button - Updated Horizontal Design */}
+            {selectedSlots.length > 0 && !modalState.isOpen && (
+                <div className="fixed bottom-8 left-1/2 transform -translate-x-1/2 z-50 animate-in fade-in slide-in-from-bottom-4 w-[90%] max-w-md">
+                    <button
+                        onClick={handleReserveClick}
+                        className="w-full bg-gray-900 shadow-2xl rounded-2xl p-4 flex items-center justify-between border border-gray-800 active:scale-[0.98] transition-all duration-200 group"
+                    >
+                        <div className="flex flex-col items-start pl-2">
+                            <span className="text-[11px] text-gray-400 font-medium mb-0.5">선택된 시간</span>
+                            <span className="text-lg md:text-xl font-bold text-white tracking-tight font-sans">
                                 {(() => {
                                     const sorted = [...selectedSlots].sort((a, b) => toMinutes(a.time) - toMinutes(b.time));
                                     const start = sorted[0].time;
@@ -698,14 +699,15 @@ export function ScheduleBoard({ schedule, startDate, onOccupiedCellClick, onRese
                                     return `${start} ~ ${end}`;
                                 })()}
                             </span>
-                            <div className="flex items-center gap-1.5">
-                                <span className="text-pink-400 font-bold text-base tracking-tighter">예약하기</span>
-                                <ChevronRight className="w-3.5 h-3.5 text-pink-400 stroke-[3px]" />
-                            </div>
-                        </button>
-                    </div>
-                )
-            }
+                        </div>
+
+                        <div className="flex items-center gap-2 bg-pink-500 hover:bg-pink-600 text-white px-5 py-2.5 rounded-xl transition-colors">
+                            <span className="font-bold text-sm md:text-base leading-none">예약하기</span>
+                            <ChevronRight className="w-4 h-4" />
+                        </div>
+                    </button>
+                </div>
+            )}
         </>
     );
 }
