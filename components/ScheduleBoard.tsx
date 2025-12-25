@@ -667,7 +667,9 @@ export function ScheduleBoard({ schedule, startDate, onOccupiedCellClick, onRese
                         </div>
                     ))}
                 </div>
+                    ))}
             </div>
+        </div >
 
             <ReservationModal
                 isOpen={modalState.isOpen}
@@ -679,29 +681,31 @@ export function ScheduleBoard({ schedule, startDate, onOccupiedCellClick, onRese
                 selectedCourt={modalState.court}
             />
 
-            {/* Floating Reservation Button */}
-            {selectedSlots.length > 0 && !modalState.isOpen && (
-                <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50 animate-in fade-in slide-in-from-bottom-4">
-                    <button
-                        onClick={handleReserveClick}
-                        className="bg-gray-900 text-white px-8 py-2 md:px-10 md:py-3 rounded-full shadow-xl hover:bg-gray-800 transition-colors flex flex-col items-center justify-center min-w-[180px]"
-                    >
-                        <span className="text-[11px] md:text-xs text-gray-300 font-medium mb-0.5">
-                            {(() => {
-                                const sorted = [...selectedSlots].sort((a, b) => toMinutes(a.time) - toMinutes(b.time));
-                                const start = sorted[0].time;
-                                const endMins = toMinutes(sorted[sorted.length - 1].time) + 30;
-                                const end = fromMinutes(endMins);
-                                return `${start}~${end}`;
-                            })()}
-                        </span>
-                        <div className="flex items-center gap-1">
-                            <span className="text-pink-400 font-bold text-base md:text-lg leading-none">예약하기</span>
-                            <ChevronRight className="w-3 h-3 md:w-4 md:h-4 text-pink-400" />
-                        </div>
-                    </button>
-                </div>
-            )}
+    {/* Floating Reservation Button */ }
+    {
+        selectedSlots.length > 0 && !modalState.isOpen && (
+            <div className="fixed bottom-8 left-1/2 transform -translate-x-1/2 z-50 animate-in fade-in slide-in-from-bottom-4 w-full max-w-[200px]">
+                <button
+                    onClick={handleReserveClick}
+                    className="w-full bg-gray-900/95 backdrop-blur-md text-white py-3 px-6 rounded-full shadow-2xl border border-white/10 hover:bg-gray-800 transition-all flex flex-col items-center justify-center gap-0.5"
+                >
+                    <span className="text-[10px] text-gray-400 font-medium tracking-wide font-mono">
+                        {(() => {
+                            const sorted = [...selectedSlots].sort((a, b) => toMinutes(a.time) - toMinutes(b.time));
+                            const start = sorted[0].time;
+                            const endMins = toMinutes(sorted[sorted.length - 1].time) + 30;
+                            const end = fromMinutes(endMins);
+                            return `${start} ~ ${end}`;
+                        })()}
+                    </span>
+                    <div className="flex items-center gap-1.5">
+                        <span className="text-pink-400 font-bold text-base tracking-tighter">예약하기</span>
+                        <ChevronRight className="w-3.5 h-3.5 text-pink-400 stroke-[3px]" />
+                    </div>
+                </button>
+            </div>
+        )
+    }
         </>
     );
 }
