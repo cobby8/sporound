@@ -280,8 +280,14 @@ export function ScheduleBoard({ schedule, startDate, onOccupiedCellClick, onRese
                 schedule.forEach(slot => {
                     const t = toMinutes(slot.time);
                     if (t >= min && t <= max) {
-                        const courtData = court === 'pink' ? slot.courts[DAYS[dayIndex].key].pink : slot.courts[DAYS[dayIndex].key].mint;
-                        if (!courtData.text && !courtData.reservationId) {
+                        // Access the correct day data
+                        const dayKey = DAYS[dayIndex]?.key;
+                        if (!dayKey) return;
+
+                        const courtData = court === 'pink' ? slot.courts[dayKey].pink : slot.courts[dayKey].mint;
+
+                        // Only add if not occupied
+                        if (!courtData?.text && !courtData?.reservationId) {
                             rangeSlots.push({
                                 time: slot.time,
                                 dayIndex,
@@ -305,22 +311,8 @@ export function ScheduleBoard({ schedule, startDate, onOccupiedCellClick, onRese
             // Reset selection if different context
             setSelectedSlots([clickedSlot]);
         } else {
-            // If multiple slots selected, and we click a new one outside, 
-            // usually we clear and start new, or add to it.
-            // Given "Range" logic is prioritized for 2 clicks, let's reset if we click outside an existing range 
-            // unless we want to support multi-range (likely not).
-            // Let's behave like Windows Explorer: Click = Select Only This. Ctrl+Click = Add. 
-            // But mobile doesn't have Ctrl.
-            // Implied logic: Single Click = Start New Selection.
-            // BUT we need to support "Select one then select another".
-            // So:
-            // 0 Selected: Click -> Selects it.
-            // 1 Selected: Click -> Range Selects (if same context).
-            // >1 Selected: Click -> Reset and Select New? Or Toggle? 
-            // User: "Selected can be unselected by clicking".
-            // So if >1 and I click a NEW one... let's just add it? No, continuous time is preferred.
-            // Let's simplistic approach:
-            // If > 1 selected, clicking a new unselected one -> Start Fresh.
+            // If length > 1 (already a range), and click new one on same day/court -> Reset to new one?
+            // Yes, standard behavior.
             setSelectedSlots([clickedSlot]);
         }
     };
