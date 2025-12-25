@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, Fragment, useEffect } from "react";
+import { useState, Fragment, useEffect, useRef } from "react";
 import { TimeSlot, CellData } from "@/lib/data";
 import { cn } from "@/lib/utils";
 import { ChevronLeft, ChevronRight, AlertTriangle } from "lucide-react";
@@ -532,9 +532,10 @@ export function ScheduleBoard({ schedule, startDate, onOccupiedCellClick, onRese
                                             onMouseEnter={() => handleCellMouseEnter(slot.time, dIdx, courtType, isOccupied)}
                                             onTouchStart={(e) => handleTouchStart(e, slot.time, dIdx, courtType, isOccupied, courtData.reservationId)}
                                             onTouchMove={handleTouchMove}
+                                            onTouchEnd={handleTouchEnd}
                                             onClick={(e) => handleCellClick(slot.time, dIdx, courtType, isOccupied, courtData.reservationId, e)}
                                             className={cn(
-                                                "border-r border-b border-gray-100 flex items-center justify-center text-center px-0.5 py-0 cursor-pointer transition-all relative z-10 select-none touch-none", // Added touch-none to prevent scroll while dragging
+                                                "border-r border-b border-gray-100 flex items-center justify-center text-center px-0.5 py-0 cursor-pointer transition-all relative z-10 select-none", // Removed touch-none to allow scrolling during delay
                                                 !customStyle && bgColorClass,
                                                 !customStyle && finalTextColor,
                                                 dIdx === selectedDayIndex ? "flex" : "hidden md:flex",
