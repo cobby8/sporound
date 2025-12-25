@@ -173,22 +173,48 @@ export function ScheduleBoard({ schedule, startDate, onOccupiedCellClick, onRese
     };
 
     // Touch Drag Handling
+    // Touch Drag Handling
+    const longPressTimer = useRef<NodeJS.Timeout | null>(null);
+
     const handleTouchStart = (e: React.TouchEvent, time: string, dayIndex: number, court: "pink" | "mint", isOccupied: boolean, reservationId?: string) => {
         if (isOccupied) return;
-        // e.preventDefault(); // CAREFUL: This might block scrolling. Only prevent if necessary.
-        // For vertical drag, we might want to block scroll, but horizontal?
-        // Let's rely on standard logic but mark dragging.
 
-        const targetDate = formatDateFull(getDayDate(dayIndex));
-        const startSlot = { time, dayIndex, court, date: targetDate };
+        // Start Timer for Long Press (1s -> 800ms)
+        longPressTimer.current = setTimeout(() => {
+            const targetDate = formatDateFull(getDayDate(dayIndex));
+            const startSlot = { time, dayIndex, court, date: targetDate };
 
-        setIsDragging(true);
-        setDragStart(startSlot);
-        setSelectedSlots([startSlot]); // Start fresh selection
+            setIsDragging(true);
+            setDragStart(startSlot);
+            setSelectedSlots([startSlot]); // Start fresh selection on drag start
+
+            // Haptic feedback if available
+            if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50);
+        }, 800);
+    };
+
+    const handleTouchEnd = () => {
+        if (longPressTimer.current) {
+            clearTimeout(longPressTimer.current);
+            longPressTimer.current = null;
+        }
+        // If we were dragging, stop.
+        if (isDragging) {
+            setIsDragging(false);
+            setDragStart(null);
+        }
     };
 
     const handleTouchMove = (e: React.TouchEvent) => {
-        if (!isDragging || !dragStart) return;
+        // If not dragging, it means long press hasn't fired yet. 
+        // If user moves finger BEFORE timer fires, it's a scroll. Cancel timer.
+        if (!isDragging) {
+            if (longPressTimer.current) {
+                clearTimeout(longPressTimer.current);
+                longPressTimer.current = null;
+            }
+            return;
+        }
 
         // Find element under touch
         const touch = e.touches[0];
