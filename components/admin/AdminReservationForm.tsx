@@ -326,13 +326,13 @@ export function AdminReservationForm({ onSuccess, initialData, isCopyMode = fals
                 <div className="space-y-6">
                     <div className="flex bg-gray-100 p-1 rounded-lg">
                         <button
-                            className={`flex-1 py-2 text-sm font-bold rounded-md transition-all ${!isGuest ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-900'}`}
+                            className={`flex-1 py-2 text-sm font-bold rounded-md transition-all ${!isGuest ? 'bg-white shadow text-gray-900' : 'text-gray-600 hover:text-gray-900'}`}
                             onClick={() => setIsGuest(false)}
                         >
                             회원 검색
                         </button>
                         <button
-                            className={`flex-1 py-2 text-sm font-bold rounded-md transition-all ${isGuest ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-900'}`}
+                            className={`flex-1 py-2 text-sm font-bold rounded-md transition-all ${isGuest ? 'bg-white shadow text-gray-900' : 'text-gray-600 hover:text-gray-900'}`}
                             onClick={() => setIsGuest(true)}
                         >
                             비회원 / 내부용
@@ -345,11 +345,11 @@ export function AdminReservationForm({ onSuccess, initialData, isCopyMode = fals
                                 <input
                                     type="text"
                                     placeholder="사용자 이름 검색..."
-                                    className="flex-1 border p-2 rounded"
+                                    className="flex-1 border p-2 rounded text-gray-900 placeholder:text-gray-500"
                                     value={searchQuery}
                                     onChange={e => setSearchQuery(e.target.value)}
                                 />
-                                <button onClick={handleSearchUser} className="bg-gray-800 text-white px-4 rounded hover:bg-gray-700">검색</button>
+                                <button onClick={handleSearchUser} className="bg-gray-900 text-white px-4 rounded hover:bg-gray-800">검색</button>
                             </div>
                             {searchResults.length > 0 && (
                                 <ul className="border rounded max-h-40 overflow-y-auto">
@@ -358,8 +358,8 @@ export function AdminReservationForm({ onSuccess, initialData, isCopyMode = fals
                                             onClick={() => setSelectedUser(u)}
                                             className={`p-2 cursor-pointer hover:bg-gray-50 ${selectedUser?.id === u.id ? 'bg-blue-50' : ''}`}
                                         >
-                                            <div className="font-bold">{u.name}</div>
-                                            <div className="text-xs text-gray-500">{u.email} ({u.phone})</div>
+                                            <div className="font-bold text-gray-900">{u.name}</div>
+                                            <div className="text-xs text-gray-600">{u.email} ({u.phone})</div>
                                         </li>
                                     ))}
                                 </ul>
@@ -369,19 +369,19 @@ export function AdminReservationForm({ onSuccess, initialData, isCopyMode = fals
                     ) : (
                         <div className="space-y-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
                             <div>
-                                <label className="block text-sm font-medium mb-1">담당자 성함</label>
+                                <label className="block text-sm font-extrabold text-gray-900 mb-1">담당자 성함</label>
                                 <input
                                     type="text"
-                                    className="w-full border p-2 rounded"
+                                    className="w-full border p-2 rounded text-gray-900"
                                     value={details.guestName}
                                     onChange={e => setDetails({ ...details, guestName: e.target.value })}
                                 />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium mb-1">연락처</label>
+                                <label className="block text-sm font-extrabold text-gray-900 mb-1">연락처</label>
                                 <input
                                     type="tel"
-                                    className="w-full border p-2 rounded"
+                                    className="w-full border p-2 rounded text-gray-900"
                                     value={details.guestPhone}
                                     onChange={e => setDetails({ ...details, guestPhone: e.target.value })}
                                 />
@@ -391,7 +391,7 @@ export function AdminReservationForm({ onSuccess, initialData, isCopyMode = fals
                     <button
                         disabled={!isGuest && !selectedUser}
                         onClick={() => setStep("details")}
-                        className="w-full bg-pink-600 text-white py-2 rounded font-bold disabled:opacity-50"
+                        className="w-full bg-pink-600 text-white py-2 rounded font-bold disabled:opacity-50 hover:bg-pink-700"
                     >
                         다음: 상세 정보
                     </button>
@@ -402,17 +402,17 @@ export function AdminReservationForm({ onSuccess, initialData, isCopyMode = fals
                 <div className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-sm font-bold mb-1">팀/단체명 (표시용)</label>
+                            <label className="block text-sm font-extrabold text-gray-900 mb-1">팀/단체명 (표시용)</label>
                             <input
                                 type="text"
-                                className="w-full border p-2 rounded"
+                                className="w-full border p-2 rounded text-gray-900"
                                 placeholder="예: 스포라운드 농구팀"
                                 value={details.teamName}
                                 onChange={e => setDetails({ ...details, teamName: e.target.value })}
                             />
                         </div>
                         <div>
-                            <label className="block text-sm font-bold mb-1">표시 색상</label>
+                            <label className="block text-sm font-extrabold text-gray-900 mb-1">표시 색상</label>
                             <div className="flex flex-wrap gap-2 mt-2">
                                 {COLORS.map(c => (
                                     <button
@@ -444,9 +444,9 @@ export function AdminReservationForm({ onSuccess, initialData, isCopyMode = fals
 
                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-sm font-medium mb-1">코트</label>
+                            <label className="block text-sm font-extrabold text-gray-900 mb-1">코트</label>
                             <select
-                                className="w-full border p-2 rounded"
+                                className="w-full border p-2 rounded text-gray-900"
                                 value={details.courtId}
                                 onChange={e => setDetails({ ...details, courtId: e.target.value })}
                             >
@@ -457,7 +457,7 @@ export function AdminReservationForm({ onSuccess, initialData, isCopyMode = fals
                         </div>
                         {mode === 'recurring' ? (
                             <div>
-                                <label className="block text-sm font-medium mb-1">요일 (다중 선택 가능)</label>
+                                <label className="block text-sm font-extrabold text-gray-900 mb-1">요일 (다중 선택 가능)</label>
                                 <div className="flex gap-1">
                                     {DAYS_OPTIONS.map(day => {
                                         const isSelected = details.daysOfWeek.includes(day.key);
@@ -468,8 +468,8 @@ export function AdminReservationForm({ onSuccess, initialData, isCopyMode = fals
                                                 className={cn(
                                                     "flex-1 py-2 text-xs font-bold rounded border transition-colors",
                                                     isSelected
-                                                        ? "bg-gray-800 text-white border-gray-800"
-                                                        : "bg-white text-gray-400 border-gray-200 hover:bg-gray-50"
+                                                        ? "bg-gray-900 text-white border-gray-900"
+                                                        : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50 hover:text-gray-900"
                                                 )}
                                             >
                                                 {day.label}
@@ -480,46 +480,46 @@ export function AdminReservationForm({ onSuccess, initialData, isCopyMode = fals
                             </div>
                         ) : (
                             <div>
-                                <label className="block text-sm font-medium mb-1">날짜</label>
-                                <input type="date" className="w-full border p-2 rounded" value={details.date} onChange={e => setDetails({ ...details, date: e.target.value })} />
+                                <label className="block text-sm font-extrabold text-gray-900 mb-1">날짜</label>
+                                <input type="date" className="w-full border p-2 rounded text-gray-900" value={details.date} onChange={e => setDetails({ ...details, date: e.target.value })} />
                             </div>
                         )}
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-sm font-medium mb-1">시작 시간</label>
-                            <input type="time" className="w-full border p-2 rounded" value={details.startTime} onChange={e => setDetails({ ...details, startTime: e.target.value })} />
+                            <label className="block text-sm font-extrabold text-gray-900 mb-1">시작 시간</label>
+                            <input type="time" className="w-full border p-2 rounded text-gray-900" value={details.startTime} onChange={e => setDetails({ ...details, startTime: e.target.value })} />
                         </div>
                         <div>
-                            <label className="block text-sm font-medium mb-1">종료 시간</label>
-                            <input type="time" className="w-full border p-2 rounded" value={details.endTime} onChange={e => setDetails({ ...details, endTime: e.target.value })} />
+                            <label className="block text-sm font-extrabold text-gray-900 mb-1">종료 시간</label>
+                            <input type="time" className="w-full border p-2 rounded text-gray-900" value={details.endTime} onChange={e => setDetails({ ...details, endTime: e.target.value })} />
                         </div>
                     </div>
 
                     {mode === 'recurring' && (
                         <div className="grid grid-cols-2 gap-4">
                             <div>
-                                <label className="block text-sm font-medium mb-1">시작일</label>
-                                <input type="date" className="w-full border p-2 rounded" value={details.startDate} onChange={e => setDetails({ ...details, startDate: e.target.value })} />
+                                <label className="block text-sm font-extrabold text-gray-900 mb-1">시작일</label>
+                                <input type="date" className="w-full border p-2 rounded text-gray-900" value={details.startDate} onChange={e => setDetails({ ...details, startDate: e.target.value })} />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium mb-1">종료일</label>
-                                <input type="date" className="w-full border p-2 rounded" value={details.endDate} onChange={e => setDetails({ ...details, endDate: e.target.value })} />
+                                <label className="block text-sm font-extrabold text-gray-900 mb-1">종료일</label>
+                                <input type="date" className="w-full border p-2 rounded text-gray-900" value={details.endDate} onChange={e => setDetails({ ...details, endDate: e.target.value })} />
                             </div>
                         </div>
                     )}
 
-                    <button onClick={handlePreview} className="w-full bg-pink-600 text-white py-2 rounded font-bold">
+                    <button onClick={handlePreview} className="w-full bg-pink-600 text-white py-2 rounded font-bold hover:bg-pink-700">
                         {initialData ? (isCopyMode ? "복사 내용 확인 (충돌 체크)" : "변경 내용 확인 (충돌 체크)") : "예약 가능 확인 (충돌 체크)"}
                     </button>
-                    <button onClick={() => setStep("user")} className="w-full text-gray-500 text-sm">뒤로가기 (담당자/연락처 변경)</button>
+                    <button onClick={() => setStep("user")} className="w-full text-gray-600 hover:text-gray-900 text-sm font-medium">뒤로가기 (담당자/연락처 변경)</button>
                 </div>
             )}
 
             {step === "confirm" && (
                 <div className="space-y-4">
-                    <div className="bg-gray-50 p-3 rounded text-sm">
+                    <div className="bg-gray-100 p-3 rounded text-sm text-gray-900">
                         <p><strong>{initialData && !isCopyMode ? '수정' : '생성'} 예정:</strong> {previewDates.length}건</p>
                         {mode === 'recurring' ? (
                             <p><strong>기간:</strong> {previewDates[0]} ~ {previewDates[previewDates.length - 1]}</p>
@@ -556,11 +556,11 @@ export function AdminReservationForm({ onSuccess, initialData, isCopyMode = fals
                     <button
                         disabled={conflicts.length > 0}
                         onClick={handleSubmit}
-                        className="w-full bg-gray-900 text-white py-2 rounded font-bold disabled:opacity-50"
+                        className="w-full bg-gray-900 text-white py-2 rounded font-bold disabled:opacity-50 hover:bg-gray-800"
                     >
                         {loading ? <Loader2 className="animate-spin w-5 h-5 mx-auto" /> : (initialData && !isCopyMode ? "예약 수정 완료" : "예약 생성 완료")}
                     </button>
-                    <button onClick={() => setStep("details")} className="w-full text-gray-500 text-sm">뒤로가기</button>
+                    <button onClick={() => setStep("details")} className="w-full text-gray-600 hover:text-gray-900 text-sm font-medium">뒤로가기</button>
                 </div>
             )}
         </div>

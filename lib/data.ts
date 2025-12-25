@@ -66,7 +66,10 @@ export function generateScheduleData(reservations: any[]): TimeSlot[] {
                 // If this is the start slot
                 if (currentSlotMinutes === startMinutes) {
                     // Display Priority: Team Name > User Name > Guest Name
-                    const displayText = res.team_name || res.profiles?.name || res.guest_name || '예약';
+                    let displayText = res.team_name || res.profiles?.name || res.guest_name || '예약';
+                    if (res.status === 'pending') {
+                        displayText = `(대기) ${displayText}`;
+                    }
 
                     // Calculate rowSpan: (duration in minutes) / 30
                     const durationMinutes = endMinutes - startMinutes;

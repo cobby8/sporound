@@ -46,6 +46,12 @@ export default function AdminPage() {
     const [searchTerm, setSearchTerm] = useState("");
     const [isRecovering, setIsRecovering] = useState(false);
 
+    // Filters
+    const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'confirmed' | 'canceled'>('all');
+    const [filterCourt, setFilterCourt] = useState<'all' | 'pink' | 'mint'>('all');
+    const [filterStartDate, setFilterStartDate] = useState("");
+    const [filterEndDate, setFilterEndDate] = useState("");
+
     // Grouping State
     const [groupBy, setGroupBy] = useState<'none' | 'group'>('group');
     const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
@@ -175,16 +181,30 @@ export default function AdminPage() {
 
     const displayItems = useMemo(() => {
         // Filter based on Search Term
+        // Filter based on Search Term & Filters
         const filteredReservations = reservations.filter(r => {
-            if (!searchTerm) return true;
+            // Text Search
             const lowerTerm = searchTerm.toLowerCase();
-            return (
+            const matchesSearch = !searchTerm || (
                 r.team_name?.toLowerCase().includes(lowerTerm) ||
                 r.profiles?.name?.toLowerCase().includes(lowerTerm) ||
                 r.profiles?.phone?.includes(searchTerm) ||
                 r.guest_name?.toLowerCase().includes(lowerTerm) ||
                 r.purpose?.toLowerCase().includes(lowerTerm)
             );
+
+            // Status Filter
+            const matchesStatus = filterStatus === 'all' || r.status === filterStatus;
+
+            // Court Filter
+            const matchesCourt = filterCourt === 'all' || r.courts?.name === filterCourt;
+
+            // Date Filter
+            let matchesDate = true;
+            if (filterStartDate) matchesDate = matchesDate && r.date >= filterStartDate;
+            if (filterEndDate) matchesDate = matchesDate && r.date <= filterEndDate;
+
+            return matchesSearch && matchesStatus && matchesCourt && matchesDate;
         });
 
         if (groupBy === 'none') {
@@ -354,212 +374,285 @@ export default function AdminPage() {
                             </button>
                         )}
                     </div>
+                </div>
+            </div>
 
-                    <div className="flex items-center gap-2">
-                        {viewMode === 'calendar' && (
-                            <div className="flex items-center gap-2 mr-4 bg-gray-50 p-1 rounded-lg">
-                                <button onClick={() => setCurrentDate(d => { const n = new Date(d); n.setDate(n.getDate() - 7); return n; })} className="p-1 hover:bg-white rounded shadow-sm"><ChevronDown className="w-4 h-4 rotate-90" /></button>
-                                <span className="text-sm font-bold min-w-[100px] text-center">{getWeekStartDate()}</span>
-                                <button onClick={() => setCurrentDate(d => { const n = new Date(d); n.setDate(n.getDate() + 7); return n; })} className="p-1 hover:bg-white rounded shadow-sm"><ChevronDown className="w-4 h-4 -rotate-90" /></button>
-                            </div>
-                        )}
-                        <div className="flex items-center gap-2">
+            {/* Filter Bar */}
+            <div className="px-6 py-3 bg-gray-50 border-b border-gray-200 flex flex-wrap items-center gap-3">
+                <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-gray-500">상태</span>
+                    <select
+                        value={filterStatus}
+                        onChange={(e) => setFilterStatus(e.target.value as any)}
+                        className="text-sm border-gray-300 rounded-md shadow-sm focus:border-black focus:ring-black"
+                    >
+                        <option value="all">전체</option>
+                        <option value="pending">대기중</option>
+                        <option value="confirmed">승인됨</option>
+                        <option value="canceled">취소됨</option>
+                    </select>
+                </div>
+                <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-gray-500">코트</span>
+                    <select
+                        value={filterCourt}
+                        onChange={(e) => setFilterCourt(e.target.value as any)}
+                        className="text-sm border-gray-300 rounded-md shadow-sm focus:border-black focus:ring-black"
+                    >
+                        <option value="all">전체</option>
+                        <option value="pink">Pink</option>
+                        <option value="mint">Mint</option>
+                    </select>
+                </div>
+                <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-gray-500">기간</span>
+                    <input
+                        type="date"
+                        value={filterStartDate}
+                        onChange={(e) => setFilterStartDate(e.target.value)}
+                        className="text-sm border-gray-300 rounded-md shadow-sm"
+                    />
+                    <span className="text-gray-400">~</span>
+                    <input
+                        type="date"
+                        value={filterEndDate}
+                        onChange={(e) => setFilterEndDate(e.target.value)}
+                        className="text-sm border-gray-300 rounded-md shadow-sm"
+                    />
+                </div>
+                {(filterStatus !== 'all' || filterCourt !== 'all' || filterStartDate || filterEndDate) && (
+                    <button
+                        onClick={() => {
+                            setFilterStatus('all');
+                            setFilterCourt('all');
+                            setFilterStartDate('');
+                            setFilterEndDate('');
+                        }}
+                        className="ml-auto text-xs text-red-600 hover:text-red-800 font-bold"
+                    >
+                        필터 초기화
+                    </button>
+                )}
 
-                            <button
-                                onClick={() => {
-                                    setCopyData(null);
-                                    setCreatePrefill(null);
-                                    setIsCreateModalOpen(true);
-                                }}
-                                className="flex items-center gap-2 bg-gray-900 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-gray-800"
-                            >
-                                <Plus className="w-4 h-4" />
-                                예약 생성
-                            </button>
+                <div className="flex items-center gap-2">
+                    {viewMode === 'calendar' && (
+                        <div className="flex items-center gap-2 mr-4 bg-gray-50 p-1 rounded-lg">
+                            <button onClick={() => setCurrentDate(d => { const n = new Date(d); n.setDate(n.getDate() - 7); return n; })} className="p-1 hover:bg-white rounded shadow-sm"><ChevronDown className="w-4 h-4 rotate-90" /></button>
+                            <span className="text-sm font-bold min-w-[100px] text-center">{getWeekStartDate()}</span>
+                            <button onClick={() => setCurrentDate(d => { const n = new Date(d); n.setDate(n.getDate() + 7); return n; })} className="p-1 hover:bg-white rounded shadow-sm"><ChevronDown className="w-4 h-4 -rotate-90" /></button>
                         </div>
+                    )}
+                    <div className="flex items-center gap-2">
+
+                        <button
+                            onClick={() => {
+                                setCopyData(null);
+                                setCreatePrefill(null);
+                                setIsCreateModalOpen(true);
+                            }}
+                            className="flex items-center gap-2 bg-gray-900 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-gray-800"
+                        >
+                            <Plus className="w-4 h-4" />
+                            예약 생성
+                        </button>
                     </div>
                 </div>
             </div>
 
-
-            {viewMode === 'list' ? (
-                <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50">
-                            <tr>
-                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">상태</th>
-                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">날짜/시간</th>
-                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">팀/사용자</th>
-                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">코트/인원</th>
-                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">목적/금액</th>
-                                <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">관리</th>
-                            </tr>
-                        </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
-                            {loading ? (
+            {
+                viewMode === 'list' ? (
+                    <div className="overflow-x-auto">
+                        <table className="min-w-full divide-y divide-gray-200">
+                            <thead className="bg-gray-50">
                                 <tr>
-                                    <td colSpan={6} className="px-6 py-10 text-center text-gray-500">로딩 중...</td>
+                                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">상태</th>
+                                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">날짜/시간</th>
+                                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">팀/사용자</th>
+                                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">코트/인원</th>
+                                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">목적/금액</th>
+                                    <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">관리</th>
                                 </tr>
-                            ) : displayItems.length === 0 ? (
-                                <tr>
-                                    <td colSpan={6} className="px-6 py-10 text-center text-gray-500">예약 내역이 없습니다.</td>
-                                </tr>
-                            ) : (
-                                displayItems.map((item) => {
-                                    if (item.type === 'single') {
-                                        const res = item.data;
-                                        return (
-                                            <tr key={res.id} className="hover:bg-gray-50">
-                                                <td className="px-6 py-4 whitespace-nowrap">{getStatusBadge(res.status)}</td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                                    <div className="font-medium">{format(new Date(res.date), 'yyyy-MM-dd (eee)', { locale: ko })}</div>
-                                                    <div className="text-gray-500 text-xs">{res.start_time.slice(0, 5)} - {res.end_time.slice(0, 5)}</div>
-                                                </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                                    <div className="font-bold">{res.team_name || '-'}</div>
-                                                    <div className="text-xs text-gray-500">{res.profiles?.name || res.guest_name}</div>
-                                                </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm">
-                                                    <span className={`px-2 py-1 rounded-md text-xs font-bold ${res.courts?.name === 'pink' ? 'bg-pink-100 text-pink-700' : 'bg-emerald-100 text-emerald-700'}`}>
-                                                        {res.courts?.name || '코트 미정'}
-                                                    </span>
-                                                    <div className="text-xs text-gray-500 mt-1">{res.people_count || 1}명</div>
-                                                </td>
-                                                <td className="px-6 py-4 text-sm text-gray-500 max-w-xs">
-                                                    <div className="truncate" title={res.purpose || ""}>{res.purpose}</div>
-                                                    <div className="font-medium text-gray-900">{res.total_price ? `₩${res.total_price.toLocaleString()}` : '-'}</div>
-                                                </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                                    <div className="flex justify-end gap-2 items-center">
-                                                        <button onClick={() => handleCopy(res)} className="text-gray-600 hover:text-gray-900 bg-gray-100 px-2 py-1 rounded text-xs flex items-center gap-1"><Copy className="w-3 h-3" /> 복사</button>
-                                                        <button onClick={() => setSelectedReservation(res)} className="text-gray-600 hover:text-gray-900 bg-gray-100 px-2 py-1 rounded text-xs">수정</button>
-                                                        <button onClick={() => handleDelete(item)} className="text-red-600 hover:bg-red-50 p-1 rounded"><Trash2 className="w-4 h-4" /></button>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        );
-                                    } else {
-                                        // Group Row
-                                        const isExpanded = expandedGroups.has(item.id);
-                                        return (
-                                            <Fragment key={item.id}>
-                                                <tr className="bg-blue-50/50 hover:bg-blue-50 border-l-4 border-blue-500">
-                                                    <td className="px-6 py-4 whitespace-nowrap">
-                                                        <div className="flex items-center gap-2">
-                                                            <RefreshCw className="w-4 h-4 text-blue-600" />
-                                                            <span className="text-xs font-bold text-blue-700">반복 예약 ({item.items.length}건)</span>
-                                                        </div>
+                            </thead>
+                            <tbody className="bg-white divide-y divide-gray-200">
+                                {loading ? (
+                                    <tr>
+                                        <td colSpan={6} className="px-6 py-10 text-center text-gray-500">로딩 중...</td>
+                                    </tr>
+                                ) : displayItems.length === 0 ? (
+                                    <tr>
+                                        <td colSpan={6} className="px-6 py-10 text-center text-gray-500">예약 내역이 없습니다.</td>
+                                    </tr>
+                                ) : (
+                                    displayItems.map((item) => {
+                                        if (item.type === 'single') {
+                                            const res = item.data;
+                                            return (
+                                                <tr key={res.id} className="hover:bg-gray-50">
+                                                    <td className="px-6 py-4 whitespace-nowrap">{getStatusBadge(res.status)}</td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                        <div className="font-medium">{format(new Date(res.date), 'yyyy-MM-dd (eee)', { locale: ko })}</div>
+                                                        <div className="text-gray-500 text-xs">{res.start_time.slice(0, 5)} - {res.end_time.slice(0, 5)}</div>
                                                     </td>
                                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                                        <div className="font-bold">{item.start} ~ {item.end}</div>
-                                                        <div className="text-xs text-gray-500">
-                                                            {item.rule?.daysOfWeek?.map((d: string) => d.toUpperCase()).join(', ')}
-                                                        </div>
+                                                        <div className="font-bold">{res.team_name || '-'}</div>
+                                                        <div className="text-xs text-gray-500">{res.profiles?.name || res.guest_name}</div>
                                                     </td>
-                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                                        <div className="font-bold">{item.teamName || '-'}</div>
-                                                        <div className="text-xs text-gray-500">{item.user?.name}</div>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                                        <span className={`px-2 py-1 rounded-md text-xs font-bold ${res.courts?.name === 'pink' ? 'bg-pink-100 text-pink-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                                                            {res.courts?.name || '코트 미정'}
+                                                        </span>
+                                                        <div className="text-xs text-gray-500 mt-1">{res.people_count || 1}명</div>
                                                     </td>
-                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                                        {item.items[0].courts?.name} 등
-                                                    </td>
-                                                    <td className="px-6 py-4 text-sm">
-                                                        -
+                                                    <td className="px-6 py-4 text-sm text-gray-500 max-w-xs">
+                                                        <div className="truncate" title={res.purpose || ""}>{res.purpose}</div>
+                                                        <div className="font-medium text-gray-900">{res.total_price ? `₩${res.total_price.toLocaleString()}` : '-'}</div>
                                                     </td>
                                                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                                         <div className="flex justify-end gap-2 items-center">
-                                                            {/* Group can also be copied? Maybe copy first item logic */}
-                                                            <button onClick={() => handleCopy(item.items[0])} className="text-gray-600 hover:text-gray-900 bg-gray-100 px-2 py-1 rounded text-xs flex items-center gap-1"><Copy className="w-3 h-3" /> 복사</button>
-                                                            <button
-                                                                onClick={() => setSelectedReservation(item.items[0])} // Edit group via first item
-                                                                className="text-blue-600 hover:text-blue-900 bg-blue-100 px-2 py-1 rounded text-xs"
-                                                            >
-                                                                전체 수정
-                                                            </button>
+                                                            {res.status === 'pending' && (
+                                                                <button
+                                                                    onClick={() => handleStatusUpdate(res.id, 'confirmed')}
+                                                                    className="text-green-600 hover:bg-green-50 bg-white border border-green-200 px-2 py-1 rounded text-xs font-bold shadow-sm"
+                                                                >
+                                                                    승인
+                                                                </button>
+                                                            )}
+                                                            <button onClick={() => handleCopy(res)} className="text-gray-600 hover:text-gray-900 bg-gray-100 px-2 py-1 rounded text-xs flex items-center gap-1"><Copy className="w-3 h-3" /> 복사</button>
+                                                            <button onClick={() => setSelectedReservation(res)} className="text-gray-600 hover:text-gray-900 bg-gray-100 px-2 py-1 rounded text-xs">수정</button>
                                                             <button onClick={() => handleDelete(item)} className="text-red-600 hover:bg-red-50 p-1 rounded"><Trash2 className="w-4 h-4" /></button>
-                                                            <button onClick={() => toggleGroup(item.id)} className="text-gray-500 p-1">
-                                                                {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                                                            </button>
                                                         </div>
                                                     </td>
                                                 </tr>
-                                                {isExpanded && item.items.map((res) => (
-                                                    <tr key={res.id} className="bg-gray-50/50 hover:bg-gray-100">
-                                                        <td className="px-6 py-2 pl-10 whitespace-nowrap text-xs">
-                                                            {getStatusBadge(res.status)}
+                                            );
+                                        } else {
+                                            // Group Row
+                                            const isExpanded = expandedGroups.has(item.id);
+                                            return (
+                                                <Fragment key={item.id}>
+                                                    <tr className="bg-blue-50/50 hover:bg-blue-50 border-l-4 border-blue-500">
+                                                        <td className="px-6 py-4 whitespace-nowrap">
+                                                            <div className="flex items-center gap-2">
+                                                                <RefreshCw className="w-4 h-4 text-blue-600" />
+                                                                <span className="text-xs font-bold text-blue-700">반복 예약 ({item.items.length}건)</span>
+                                                            </div>
                                                         </td>
-                                                        <td className="px-6 py-2 whitespace-nowrap text-xs text-gray-700">
-                                                            {format(new Date(res.date), 'yyyy-MM-dd (eee)', { locale: ko })} {res.start_time.slice(0, 5)}
+                                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                            <div className="font-bold">{item.start} ~ {item.end}</div>
+                                                            <div className="text-xs text-gray-500">
+                                                                {item.rule?.daysOfWeek?.map((d: string) => d.toUpperCase()).join(', ')}
+                                                            </div>
                                                         </td>
-                                                        <td className="px-6 py-2 whitespace-nowrap text-xs text-gray-500">
-                                                            {res.profiles?.name}
+                                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                            <div className="font-bold">{item.teamName || '-'}</div>
+                                                            <div className="text-xs text-gray-500">{item.user?.name}</div>
                                                         </td>
-                                                        <td className="px-6 py-2 whitespace-nowrap text-xs text-gray-500">
-                                                            {res.courts?.name}
+                                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                            {item.items[0].courts?.name} 등
                                                         </td>
-                                                        <td className="px-6 py-2 text-xs text-gray-500 truncate max-w-xs">
-                                                            {res.purpose}
+                                                        <td className="px-6 py-4 text-sm">
+                                                            -
                                                         </td>
-                                                        <td className="px-6 py-2 text-right">
-                                                            <div className="flex justify-end gap-1">
-                                                                <button onClick={() => handleCopy(res)} className="text-gray-400 hover:text-gray-900 text-xs mr-2"><Copy className="w-3 h-3 inline" /></button>
+                                                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                                            <div className="flex justify-end gap-2 items-center">
+                                                                {/* Group can also be copied? Maybe copy first item logic */}
+                                                                <button onClick={() => handleCopy(item.items[0])} className="text-gray-600 hover:text-gray-900 bg-gray-100 px-2 py-1 rounded text-xs flex items-center gap-1"><Copy className="w-3 h-3" /> 복사</button>
                                                                 <button
-                                                                    onClick={() => setSelectedReservation(res)}
-                                                                    className="text-gray-400 hover:text-gray-900 text-xs underline"
+                                                                    onClick={() => setSelectedReservation(item.items[0])} // Edit group via first item
+                                                                    className="text-blue-600 hover:text-blue-900 bg-blue-100 px-2 py-1 rounded text-xs"
                                                                 >
-                                                                    개별 수정
+                                                                    전체 수정
+                                                                </button>
+                                                                <button onClick={() => handleDelete(item)} className="text-red-600 hover:bg-red-50 p-1 rounded"><Trash2 className="w-4 h-4" /></button>
+                                                                <button onClick={() => toggleGroup(item.id)} className="text-gray-500 p-1">
+                                                                    {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                                                                 </button>
                                                             </div>
                                                         </td>
                                                     </tr>
-                                                ))}
-                                            </Fragment>
-                                        );
-                                    }
-                                })
-                            )}
-                        </tbody>
-                    </table>
-                </div>
-            ) : (
-                <div className="p-4 bg-gray-50 min-h-[500px]">
-                    <ScheduleBoard
-                        schedule={weeklySchedule}
-                        startDate={getWeekStartDate()}
-                        onOccupiedCellClick={(id: string, e?: React.MouseEvent) => {
-                            const res = reservations.find(r => r.id === id);
-                            if (res && e) {
-                                setPopoverData({
-                                    isOpen: true,
-                                    reservation: res,
-                                    position: { x: e.clientX, y: e.clientY }
-                                });
-                            }
-                        }}
-                        onReserve={handleCalendarReserve}
-                    />
-                </div>
-            )}
+                                                    {isExpanded && item.items.map((res) => (
+                                                        <tr key={res.id} className="bg-gray-50/50 hover:bg-gray-100">
+                                                            <td className="px-6 py-2 pl-10 whitespace-nowrap text-xs">
+                                                                {getStatusBadge(res.status)}
+                                                            </td>
+                                                            <td className="px-6 py-2 whitespace-nowrap text-xs text-gray-700">
+                                                                {format(new Date(res.date), 'yyyy-MM-dd (eee)', { locale: ko })} {res.start_time.slice(0, 5)}
+                                                            </td>
+                                                            <td className="px-6 py-2 whitespace-nowrap text-xs text-gray-500">
+                                                                {res.profiles?.name}
+                                                            </td>
+                                                            <td className="px-6 py-2 whitespace-nowrap text-xs text-gray-500">
+                                                                {res.courts?.name}
+                                                            </td>
+                                                            <td className="px-6 py-2 text-xs text-gray-500 truncate max-w-xs">
+                                                                {res.purpose}
+                                                            </td>
+                                                            <td className="px-6 py-2 text-right">
+                                                                <div className="flex justify-end gap-1">
+                                                                    <button onClick={() => handleCopy(res)} className="text-gray-400 hover:text-gray-900 text-xs mr-2"><Copy className="w-3 h-3 inline" /></button>
+                                                                    <button
+                                                                        onClick={() => setSelectedReservation(res)}
+                                                                        className="text-gray-400 hover:text-gray-900 text-xs underline"
+                                                                    >
+                                                                        개별 수정
+                                                                    </button>
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </Fragment>
+                                            );
+                                        }
+                                    })
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                ) : (
+                    <div className="p-4 bg-gray-50 min-h-[500px]">
+                        <ScheduleBoard
+                            schedule={weeklySchedule}
+                            startDate={getWeekStartDate()}
+                            onOccupiedCellClick={(id: string, e?: React.MouseEvent) => {
+                                const res = reservations.find(r => r.id === id);
+                                if (res && e) {
+                                    setPopoverData({
+                                        isOpen: true,
+                                        reservation: res,
+                                        position: { x: e.clientX, y: e.clientY }
+                                    });
+                                }
+                            }}
+                            onReserve={handleCalendarReserve}
+                        />
+                    </div>
+                )
+            }
 
             {/* Popover */}
-            {popoverData.isOpen && (
-                <CalendarDetailPopover
-                    reservation={popoverData.reservation}
-                    position={popoverData.position}
-                    onClose={() => setPopoverData(prev => ({ ...prev, isOpen: false }))}
-                    onEdit={(res) => {
-                        setPopoverData(prev => ({ ...prev, isOpen: false }));
-                        setSelectedReservation(res);
-                    }}
-                    onCopy={(res) => {
-                        setPopoverData(prev => ({ ...prev, isOpen: false }));
-                        handleCopy(res);
-                    }}
-                    onDelete={(res) => {
-                        handleDelete({ type: 'single', data: res });
-                    }}
-                />
-            )}
+            {
+                popoverData.isOpen && (
+                    <CalendarDetailPopover
+                        reservation={popoverData.reservation}
+                        position={popoverData.position}
+                        onClose={() => setPopoverData(prev => ({ ...prev, isOpen: false }))}
+                        onEdit={(res) => {
+                            setPopoverData(prev => ({ ...prev, isOpen: false }));
+                            setSelectedReservation(res);
+                        }}
+                        onCopy={(res) => {
+                            setPopoverData(prev => ({ ...prev, isOpen: false }));
+                            handleCopy(res);
+                        }}
+                        onDelete={(res) => {
+                            handleDelete({ type: 'single', data: res });
+                        }}
+                        onApprove={(res) => {
+                            setPopoverData(prev => ({ ...prev, isOpen: false }));
+                            handleStatusUpdate(res.id, 'confirmed');
+                        }}
+                    />
+                )
+            }
 
             {/* Shared Edit Modal */}
             <ReservationEditModal
@@ -573,106 +666,114 @@ export default function AdminPage() {
             />
 
             {/* Create Reservation Modal */}
-            {isCreateModalOpen && (
-                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 max-h-[90vh] overflow-y-auto">
-                        <div className="p-4 flex justify-end">
-                            <button onClick={() => setIsCreateModalOpen(false)} className="text-gray-500 hover:text-gray-700">
-                                <X className="w-6 h-6" />
-                            </button>
+            {
+                isCreateModalOpen && (
+                    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                        <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 max-h-[90vh] overflow-y-auto">
+                            <div className="p-4 flex justify-end">
+                                <button onClick={() => setIsCreateModalOpen(false)} className="text-gray-500 hover:text-gray-700">
+                                    <X className="w-6 h-6" />
+                                </button>
+                            </div>
+                            <AdminReservationForm
+                                initialData={copyData}
+                                isCopyMode={!!copyData}
+                                prefillData={createPrefill}
+                                onSuccess={() => {
+                                    setIsCreateModalOpen(false);
+                                    setCopyData(null);
+                                    setCreatePrefill(null);
+                                    fetchReservations();
+                                }}
+                            />
                         </div>
-                        <AdminReservationForm
-                            initialData={copyData}
-                            isCopyMode={!!copyData}
-                            prefillData={createPrefill}
-                            onSuccess={() => {
-                                setIsCreateModalOpen(false);
-                                setCopyData(null);
-                                setCreatePrefill(null);
-                                fetchReservations();
-                            }}
-                        />
                     </div>
-                </div>
-            )}
+                )
+            }
             {/* Simple Delete Confirmation Modal */}
-            {deleteTarget && (
-                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4 animate-in fade-in duration-200">
-                    <div className="bg-white rounded-lg shadow-xl max-w-sm w-full p-6">
-                        <div className="flex items-center gap-2 text-red-600 mb-4">
-                            <AlertTriangle className="w-6 h-6" />
-                            <h3 className="text-lg font-bold">삭제 확인</h3>
-                        </div>
+            {/* Simple Delete Confirmation Modal */}
+            {
+                deleteTarget && (() => {
+                    const target = deleteTarget;
+                    return (
+                        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4 animate-in fade-in duration-200">
+                            <div className="bg-white rounded-lg shadow-xl max-w-sm w-full p-6">
+                                <div className="flex items-center gap-2 text-red-600 mb-4">
+                                    <AlertTriangle className="w-6 h-6" />
+                                    <h3 className="text-lg font-bold">삭제 확인</h3>
+                                </div>
 
-                        {deleteTarget.type === 'single' && deleteTarget.data.group_id ? (
-                            <div className="mb-6">
-                                <p className="text-gray-600 mb-3 font-medium">
-                                    반복되는 예약입니다. 삭제 범위를 선택해주세요.
-                                </p>
-                                <div className="space-y-3">
-                                    <label className="flex items-center gap-3 p-2 rounded hover:bg-gray-50 cursor-pointer">
-                                        <input
-                                            type="radio"
-                                            name="deleteScope"
-                                            value="this"
-                                            checked={deleteScope === 'this'}
-                                            onChange={() => setDeleteScope('this')}
-                                            className="w-4 h-4 text-red-600 focus:ring-red-500"
-                                        />
-                                        <span className="text-sm text-gray-700">이 일정만 삭제</span>
-                                    </label>
-                                    <label className="flex items-center gap-3 p-2 rounded hover:bg-gray-50 cursor-pointer">
-                                        <input
-                                            type="radio"
-                                            name="deleteScope"
-                                            value="following"
-                                            checked={deleteScope === 'following'}
-                                            onChange={() => setDeleteScope('following')}
-                                            className="w-4 h-4 text-red-600 focus:ring-red-500"
-                                        />
-                                        <div className="flex flex-col">
-                                            <span className="text-sm text-gray-700">이 이후 일정 모두 삭제</span>
-                                            <span className="text-xs text-gray-400">선택한 일정을 포함하여 이후의 모든 반복 예약이 삭제됩니다.</span>
+                                {target.type === 'single' && target.data.group_id ? (
+                                    <div className="mb-6">
+                                        <p className="text-gray-600 mb-3 font-medium">
+                                            반복되는 예약입니다. 삭제 범위를 선택해주세요.
+                                        </p>
+                                        <div className="space-y-3">
+                                            <label className="flex items-center gap-3 p-2 rounded hover:bg-gray-50 cursor-pointer">
+                                                <input
+                                                    type="radio"
+                                                    name="deleteScope"
+                                                    value="this"
+                                                    checked={deleteScope === 'this'}
+                                                    onChange={() => setDeleteScope('this')}
+                                                    className="w-4 h-4 text-red-600 focus:ring-red-500"
+                                                />
+                                                <span className="text-sm text-gray-700">이 일정만 삭제</span>
+                                            </label>
+                                            <label className="flex items-center gap-3 p-2 rounded hover:bg-gray-50 cursor-pointer">
+                                                <input
+                                                    type="radio"
+                                                    name="deleteScope"
+                                                    value="following"
+                                                    checked={deleteScope === 'following'}
+                                                    onChange={() => setDeleteScope('following')}
+                                                    className="w-4 h-4 text-red-600 focus:ring-red-500"
+                                                />
+                                                <div className="flex flex-col">
+                                                    <span className="text-sm text-gray-700">이 이후 일정 모두 삭제</span>
+                                                    <span className="text-xs text-gray-400">선택한 일정을 포함하여 이후의 모든 반복 예약이 삭제됩니다.</span>
+                                                </div>
+                                            </label>
+                                            <label className="flex items-center gap-3 p-2 rounded hover:bg-gray-50 cursor-pointer">
+                                                <input
+                                                    type="radio"
+                                                    name="deleteScope"
+                                                    value="all"
+                                                    checked={deleteScope === 'all'}
+                                                    onChange={() => setDeleteScope('all')}
+                                                    className="w-4 h-4 text-red-600 focus:ring-red-500"
+                                                />
+                                                <span className="text-sm text-gray-700">전체 일정 삭제</span>
+                                            </label>
                                         </div>
-                                    </label>
-                                    <label className="flex items-center gap-3 p-2 rounded hover:bg-gray-50 cursor-pointer">
-                                        <input
-                                            type="radio"
-                                            name="deleteScope"
-                                            value="all"
-                                            checked={deleteScope === 'all'}
-                                            onChange={() => setDeleteScope('all')}
-                                            className="w-4 h-4 text-red-600 focus:ring-red-500"
-                                        />
-                                        <span className="text-sm text-gray-700">전체 일정 삭제</span>
-                                    </label>
+                                    </div>
+                                ) : (
+                                    <p className="text-gray-600 mb-6 whitespace-pre-wrap">
+                                        {target.type === 'group'
+                                            ? `[반복 예약 전체 삭제]\n총 ${target.items.length}건의 예약이 영구적으로 삭제됩니다.`
+                                            : `해당 예약을 정말 삭제하시겠습니까?`}
+                                    </p>
+                                )}
+
+                                <div className="flex justify-end gap-2">
+                                    <button
+                                        onClick={() => setDeleteTarget(null)}
+                                        className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-md transition-colors"
+                                    >
+                                        취소
+                                    </button>
+                                    <button
+                                        onClick={executeDelete}
+                                        className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md shadow-sm transition-colors"
+                                    >
+                                        삭제하기
+                                    </button>
                                 </div>
                             </div>
-                        ) : (
-                            <p className="text-gray-600 mb-6 whitespace-pre-wrap">
-                                {deleteTarget.type === 'group'
-                                    ? `[반복 예약 전체 삭제]\n총 ${deleteTarget.items.length}건의 예약이 영구적으로 삭제됩니다.`
-                                    : `해당 예약을 정말 삭제하시겠습니까?`}
-                            </p>
-                        )}
-
-                        <div className="flex justify-end gap-2">
-                            <button
-                                onClick={() => setDeleteTarget(null)}
-                                className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-md transition-colors"
-                            >
-                                취소
-                            </button>
-                            <button
-                                onClick={executeDelete}
-                                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md shadow-sm transition-colors"
-                            >
-                                삭제하기
-                            </button>
                         </div>
-                    </div>
-                </div>
-            )}
+                    );
+                })()
+            }
         </div>
     );
 }

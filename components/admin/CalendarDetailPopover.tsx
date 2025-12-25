@@ -13,9 +13,10 @@ interface CalendarDetailPopoverProps {
     onEdit: (res: Reservation) => void;
     onCopy: (res: Reservation) => void;
     onDelete: (res: Reservation) => void;
+    onApprove: (res: Reservation) => void;
 }
 
-export function CalendarDetailPopover({ reservation, position, onClose, onEdit, onCopy, onDelete }: CalendarDetailPopoverProps) {
+export function CalendarDetailPopover({ reservation, position, onClose, onEdit, onCopy, onDelete, onApprove }: CalendarDetailPopoverProps) {
     const popoverRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -101,6 +102,14 @@ export function CalendarDetailPopover({ reservation, position, onClose, onEdit, 
 
                 {/* Footer Buttons */}
                 <div className="flex items-center justify-end gap-2 pt-4 border-t border-gray-100">
+                    {reservation.status === 'pending' && (
+                        <button
+                            onClick={() => onApprove(reservation)}
+                            className="mr-auto px-3 py-1 bg-green-500 hover:bg-green-600 text-white text-xs font-bold rounded-full transition-colors shadow-sm"
+                        >
+                            승인
+                        </button>
+                    )}
                     <button
                         onClick={() => onCopy(reservation)}
                         className="p-2 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-full transition-colors"
