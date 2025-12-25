@@ -24,6 +24,7 @@ export function AdminReservationEditModal({ isOpen, onClose, reservation, onUpda
     const [finalFee, setFinalFee] = useState<number>(0);
     const [paymentStatus, setPaymentStatus] = useState<'unpaid' | 'paid' | 'adjustment_requested'>('unpaid');
     const [status, setStatus] = useState<'pending' | 'confirmed' | 'rejected' | 'canceled'>('pending');
+    const [teamName, setTeamName] = useState("");
 
     useEffect(() => {
         if (reservation) {
@@ -35,6 +36,7 @@ export function AdminReservationEditModal({ isOpen, onClose, reservation, onUpda
             setFinalFee(reservation.final_fee || reservation.total_price || 0);
             setPaymentStatus(reservation.payment_status || 'unpaid');
             setStatus(reservation.status);
+            setTeamName(reservation.team_name || "");
         }
     }, [reservation]);
 
@@ -56,6 +58,7 @@ export function AdminReservationEditModal({ isOpen, onClose, reservation, onUpda
                 final_fee: finalFee,
                 payment_status: paymentStatus,
                 status: status,
+                team_name: teamName,
                 // court_id: courtId // If we allow court change
             };
 
@@ -90,13 +93,27 @@ export function AdminReservationEditModal({ isOpen, onClose, reservation, onUpda
 
                 <div className="space-y-4">
                     {/* Basic Info (Read Only for now or editable if needed) */}
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">예약자</label>
-                        <div className="text-gray-900 font-bold p-2 bg-gray-50 rounded">
-                            {reservation.profiles?.name || reservation.team_name}
-                            <span className="text-gray-500 font-normal text-sm ml-2">
-                                ({reservation.profiles?.phone || reservation.guest_phone || "-"})
-                            </span>
+                    {/* Basic Info */}
+                    <div className="space-y-3">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">단체명 (팀명)</label>
+                            <input
+                                type="text"
+                                value={teamName}
+                                onChange={(e) => setTeamName(e.target.value)}
+                                className="w-full border border-gray-300 rounded-md p-2 text-gray-900 font-bold"
+                                placeholder="팀명 또는 단체명을 입력하세요"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">예약자 정보 (수정불가)</label>
+                            <div className="text-gray-900 font-medium p-2 bg-gray-50 rounded flex justify-between items-center text-sm">
+                                <span>{reservation.profiles?.name || reservation.guest_name || "이름 없음"}</span>
+                                <span className="text-gray-500">
+                                    {reservation.profiles?.phone || reservation.guest_phone || "연락처 없음"}
+                                </span>
+                            </div>
                         </div>
                     </div>
 

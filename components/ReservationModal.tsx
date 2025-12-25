@@ -29,6 +29,7 @@ export function ReservationModal({
     const [loading, setLoading] = useState(true);
     const [formData, setFormData] = useState({
         name: "",
+        teamName: "",
         contact: "",
         purpose: "",
         peopleCount: 1,
@@ -195,6 +196,7 @@ export function ReservationModal({
                 people_count: formData.peopleCount,
                 total_price: totalPrice,
                 status: 'pending',
+                team_name: formData.teamName || null,
                 payment_status: formData.isAdjustmentRequested ? 'adjustment_requested' : 'unpaid',
                 adjustment_reason: formData.isAdjustmentRequested ? formData.adjustmentReason : null
             });
@@ -205,7 +207,7 @@ export function ReservationModal({
         } else {
             alert(`예약이 접수되었습니다!${formData.isAdjustmentRequested ? '\n\n[안내] 대관비 조정 요청이 접수되었습니다.\n관리자 확인 후 최종 금액이 안내될 예정입니다.' : `\n\n[입금안내]\n하나은행 394-910573-99907 이창민\n입금액: ${totalPrice.toLocaleString()}원\n\n입금이 확인되면 예약이 확정됩니다.`}`);
             onClose();
-            setFormData({ name: "", contact: "", purpose: "", peopleCount: 1, useWaitingRoom: false, isLongTerm: false, isAdjustmentRequested: false, adjustmentReason: "" });
+            setFormData({ name: "", teamName: "", contact: "", purpose: "", peopleCount: 1, useWaitingRoom: false, isLongTerm: false, isAdjustmentRequested: false, adjustmentReason: "" });
         }
     };
 
@@ -285,6 +287,23 @@ export function ReservationModal({
                                             <option value="monthly">월 단위 정기 대관</option>
                                             <option value="3month">3개월 단위 정기 대관</option>
                                         </select>
+                                    </div>
+
+                                    <div className="space-y-4">
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                단체명 (팀명) <span className="text-gray-400 font-normal text-xs">(선택)</span>
+                                            </label>
+                                            <input
+                                                type="text"
+                                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-opacity-50 focus:outline-none transition-all focus:ring-blue-500 text-gray-900 placeholder:text-gray-500"
+                                                placeholder="팀명 또는 단체명을 입력해주세요"
+                                                value={formData.teamName}
+                                                onChange={(e) =>
+                                                    setFormData({ ...formData, teamName: e.target.value })
+                                                }
+                                            />
+                                        </div>
                                     </div>
 
                                     <div>
