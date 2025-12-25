@@ -25,11 +25,6 @@ export function SignupModal({ isOpen, onClose, onLoginClick }: SignupModalProps)
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState(false);
 
-    const [verifyCode, setVerifyCode] = useState("");
-    const [isCodeSent, setIsCodeSent] = useState(false);
-    const [isVerified, setIsVerified] = useState(false);
-    const [timeLeft, setTimeLeft] = useState(180); // 3 minutes
-
     // Reset form when modal opens
     useEffect(() => {
         if (isOpen) {
@@ -43,57 +38,12 @@ export function SignupModal({ isOpen, onClose, onLoginClick }: SignupModalProps)
             });
             setError(null);
             setSuccess(false);
-
-            // Reset verification
-            setVerifyCode("");
-            setIsCodeSent(false);
-            setIsVerified(false);
-            setTimeLeft(180);
         }
     }, [isOpen]);
-
-    // Timer Logic
-    useEffect(() => {
-        let timer: NodeJS.Timeout;
-        if (isCodeSent && !isVerified && timeLeft > 0) {
-            timer = setInterval(() => {
-                setTimeLeft((prev) => prev - 1);
-            }, 1000);
-        }
-        return () => clearInterval(timer);
-    }, [isCodeSent, isVerified, timeLeft]);
 
     const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const formatted = formatPhoneNumber(e.target.value);
         setForm({ ...form, phone: formatted });
-        // Reset verification status if number changes
-        if (isCodeSent) {
-            setIsCodeSent(false);
-            setVerifyCode("");
-            setTimeLeft(180);
-        }
-    };
-
-    const handleSendCode = () => {
-        if (!form.phone || form.phone.length < 10) {
-            alert("올바른 휴대폰 번호를 입력해주세요.");
-            return;
-        }
-
-        // Mock Send API
-        setIsCodeSent(true);
-        setTimeLeft(180);
-        setVerifyCode("");
-        alert(`[TEST] 인증번호가 발송되었습니다.\n인증번호: 123456`);
-    };
-
-    const handleVerifyCode = () => {
-        if (verifyCode === "123456") {
-            setIsVerified(true);
-            alert("인증이 완료되었습니다.");
-        } else {
-            alert("인증번호가 올바르지 않습니다.");
-        }
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -104,10 +54,7 @@ export function SignupModal({ isOpen, onClose, onLoginClick }: SignupModalProps)
             return;
         }
 
-        if (!isVerified) {
-            setError("휴대폰 인증을 완료해주세요.");
-            return;
-        }
+
 
         setLoading(true);
         setError(null);
