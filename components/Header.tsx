@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { User } from "@supabase/supabase-js";
 import { LoginModal } from "./LoginModal";
+import { SignupModal } from "./auth/SignupModal";
 import { LogOut, User as UserIcon } from "lucide-react";
 
 export function Header() {
@@ -14,6 +15,7 @@ export function Header() {
     const [user, setUser] = useState<User | null>(null);
     const [isAdmin, setIsAdmin] = useState(false);
     const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+    const [isSignupModalOpen, setIsSignupModalOpen] = useState(false);
 
     useEffect(() => {
         // Check initial session
@@ -50,6 +52,16 @@ export function Header() {
         await supabase.auth.signOut();
         // Optional: router.refresh() or redirect
         window.location.href = "/";
+    };
+
+    const openSignup = () => {
+        setIsLoginModalOpen(false);
+        setIsSignupModalOpen(true);
+    };
+
+    const openLogin = () => {
+        setIsSignupModalOpen(false);
+        setIsLoginModalOpen(true);
     };
 
     return (
@@ -141,6 +153,13 @@ export function Header() {
             <LoginModal
                 isOpen={isLoginModalOpen}
                 onClose={() => setIsLoginModalOpen(false)}
+                onSignupClick={openSignup}
+            />
+
+            <SignupModal
+                isOpen={isSignupModalOpen}
+                onClose={() => setIsSignupModalOpen(false)}
+                onLoginClick={openLogin}
             />
         </>
     );

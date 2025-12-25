@@ -266,7 +266,7 @@ export function ReservationModal({
                                             대관 구분
                                         </label>
                                         <select
-                                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-opacity-50 focus:outline-none transition-all focus:ring-blue-500"
+                                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-opacity-50 focus:outline-none transition-all focus:ring-blue-500 text-gray-900"
                                             value={reservationType}
                                             onChange={(e) => setReservationType(e.target.value as any)}
                                         >
@@ -283,7 +283,7 @@ export function ReservationModal({
                                         <input
                                             type="text"
                                             required
-                                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-opacity-50 focus:outline-none transition-all focus:ring-blue-500"
+                                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-opacity-50 focus:outline-none transition-all focus:ring-blue-500 text-gray-900 placeholder:text-gray-500"
                                             placeholder="홍길동"
                                             value={formData.name}
                                             onChange={(e) =>
@@ -294,13 +294,13 @@ export function ReservationModal({
 
                                     <div className="grid grid-cols-2 gap-4">
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            <label className="block text-sm font-medium text-gray-900 mb-1">
                                                 연락처
                                             </label>
                                             <input
                                                 type="tel"
                                                 required
-                                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-opacity-50 focus:outline-none transition-all focus:ring-blue-500"
+                                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-opacity-50 focus:outline-none transition-all focus:ring-blue-500 text-gray-900 placeholder:text-gray-500"
                                                 placeholder="010-0000-0000"
                                                 value={formData.contact}
                                                 onChange={(e) =>
@@ -309,14 +309,14 @@ export function ReservationModal({
                                             />
                                         </div>
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            <label className="block text-sm font-medium text-gray-900 mb-1">
                                                 사용 인원
                                             </label>
                                             <input
                                                 type="number"
                                                 min="1"
                                                 required
-                                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-opacity-50 focus:outline-none transition-all focus:ring-blue-500"
+                                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-opacity-50 focus:outline-none transition-all focus:ring-blue-500 text-gray-900 placeholder:text-gray-500"
                                                 value={formData.peopleCount}
                                                 onChange={(e) =>
                                                     setFormData({ ...formData, peopleCount: parseInt(e.target.value) || 1 })
@@ -334,8 +334,8 @@ export function ReservationModal({
                                             checked={formData.useWaitingRoom}
                                             onChange={(e) => setFormData({ ...formData, useWaitingRoom: e.target.checked })}
                                         />
-                                        <label htmlFor="waitingRoom" className="text-sm text-gray-700 select-none">
-                                            2층 대기실 사용 {duration >= 4 ? <span className="text-pink-600 font-bold">(무료)</span> : <span className="text-gray-500">(+20,000원)</span>}
+                                        <label htmlFor="waitingRoom" className="text-sm text-gray-900 font-medium select-none">
+                                            2층 대기실 사용 {duration >= 4 ? <span className="text-pink-600 font-bold">(무료)</span> : <span className="text-gray-600">(+20,000원)</span>}
                                         </label>
                                     </div>
 
@@ -352,7 +352,7 @@ export function ReservationModal({
                                         </label>
                                         <textarea
                                             rows={3}
-                                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-opacity-50 focus:outline-none transition-all focus:ring-blue-500"
+                                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-opacity-50 focus:outline-none transition-all focus:ring-blue-500 text-gray-900 placeholder:text-gray-500"
                                             placeholder="농구 동호회 경기, 개인 연습 등"
                                             value={formData.purpose}
                                             onChange={(e) =>
