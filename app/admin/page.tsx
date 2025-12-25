@@ -364,7 +364,7 @@ export default function AdminPage() {
                             placeholder="이름, 팀명, 전화번호 검색"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full pl-3 pr-10 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-black"
+                            className="w-full pl-3 pr-10 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-black placeholder:text-gray-500 text-black h-10"
                         />
                         {searchTerm && (
                             <button
@@ -382,11 +382,11 @@ export default function AdminPage() {
             <div className="px-6 py-3 bg-gray-50 border-b border-gray-200 flex flex-wrap items-center justify-between gap-3">
                 <div className="flex flex-wrap items-center gap-3">
                     <div className="flex items-center gap-2">
-                        <span className="text-xs font-bold text-gray-500">상태</span>
+                        <span className="text-xs font-bold text-gray-600">상태</span>
                         <select
                             value={filterStatus}
                             onChange={(e) => setFilterStatus(e.target.value as any)}
-                            className="text-sm border-gray-300 rounded-md shadow-sm focus:border-black focus:ring-black text-gray-900 font-medium"
+                            className="h-10 pl-3 pr-8 text-sm border-gray-300 rounded-lg shadow-sm focus:border-black focus:ring-black text-gray-900 font-bold min-w-[100px]"
                         >
                             <option value="all" className="text-gray-500">전체</option>
                             <option value="pending" className="text-black">대기중</option>
@@ -395,11 +395,11 @@ export default function AdminPage() {
                         </select>
                     </div>
                     <div className="flex items-center gap-2">
-                        <span className="text-xs font-bold text-gray-500">코트</span>
+                        <span className="text-xs font-bold text-gray-600">코트</span>
                         <select
                             value={filterCourt}
                             onChange={(e) => setFilterCourt(e.target.value as any)}
-                            className="text-sm border-gray-300 rounded-md shadow-sm focus:border-black focus:ring-black text-gray-900 font-medium"
+                            className="h-10 pl-3 pr-8 text-sm border-gray-300 rounded-lg shadow-sm focus:border-black focus:ring-black text-gray-900 font-bold min-w-[100px]"
                         >
                             <option value="all" className="text-gray-500">전체</option>
                             <option value="pink" className="text-black">Pink</option>
@@ -407,19 +407,19 @@ export default function AdminPage() {
                         </select>
                     </div>
                     <div className="flex items-center gap-2">
-                        <span className="text-xs font-bold text-gray-500">기간</span>
+                        <span className="text-xs font-bold text-gray-600">기간</span>
                         <input
                             type="date"
                             value={filterStartDate}
                             onChange={(e) => setFilterStartDate(e.target.value)}
-                            className={`text-sm border-gray-300 rounded-md shadow-sm focus:border-black focus:ring-black ${filterStartDate ? 'text-gray-900' : 'text-gray-400'}`}
+                            className={`h-10 px-3 text-sm border-gray-300 rounded-lg shadow-sm focus:border-black focus:ring-black font-bold ${filterStartDate ? 'text-gray-900' : 'text-gray-400'}`}
                         />
-                        <span className="text-gray-400">~</span>
+                        <span className="text-gray-400 font-bold">~</span>
                         <input
                             type="date"
                             value={filterEndDate}
                             onChange={(e) => setFilterEndDate(e.target.value)}
-                            className={`text-sm border-gray-300 rounded-md shadow-sm focus:border-black focus:ring-black ${filterEndDate ? 'text-gray-900' : 'text-gray-400'}`}
+                            className={`h-10 px-3 text-sm border-gray-300 rounded-lg shadow-sm focus:border-black focus:ring-black font-bold ${filterEndDate ? 'text-gray-900' : 'text-gray-400'}`}
                         />
                     </div>
                     {(filterStatus !== 'all' || filterCourt !== 'all' || filterStartDate || filterEndDate) && (
@@ -437,12 +437,12 @@ export default function AdminPage() {
                     )}
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3">
                     {viewMode === 'calendar' && (
-                        <div className="flex items-center gap-2 mr-4 bg-gray-50 p-1 rounded-lg">
-                            <button onClick={() => setCurrentDate(d => { const n = new Date(d); n.setDate(n.getDate() - 7); return n; })} className="p-1 hover:bg-white rounded shadow-sm"><ChevronDown className="w-4 h-4 rotate-90" /></button>
-                            <span className="text-sm font-bold min-w-[100px] text-center text-gray-900">{getWeekStartDate()}</span>
-                            <button onClick={() => setCurrentDate(d => { const n = new Date(d); n.setDate(n.getDate() + 7); return n; })} className="p-1 hover:bg-white rounded shadow-sm"><ChevronDown className="w-4 h-4 -rotate-90" /></button>
+                        <div className="flex items-center gap-2 mr-4 bg-white border border-gray-300 p-1 rounded-lg h-10 px-2 shadow-sm">
+                            <button onClick={() => setCurrentDate(d => { const n = new Date(d); n.setDate(n.getDate() - 7); return n; })} className="p-1 hover:bg-gray-100 rounded text-black"><ChevronDown className="w-5 h-5 rotate-90" /></button>
+                            <span className="text-sm font-bold min-w-[100px] text-center text-black leading-none pt-0.5">{getWeekStartDate()}</span>
+                            <button onClick={() => setCurrentDate(d => { const n = new Date(d); n.setDate(n.getDate() + 7); return n; })} className="p-1 hover:bg-gray-100 rounded text-black"><ChevronDown className="w-5 h-5 -rotate-90" /></button>
                         </div>
                     )}
                     <button
@@ -451,7 +451,7 @@ export default function AdminPage() {
                             setCreatePrefill(null);
                             setIsCreateModalOpen(true);
                         }}
-                        className="flex items-center gap-2 bg-gray-900 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-gray-800 whitespace-nowrap"
+                        className="flex items-center gap-2 bg-gray-900 text-white px-5 py-2.5 rounded-lg text-sm font-bold hover:bg-gray-800 whitespace-nowrap h-10 shadow-sm"
                     >
                         <Plus className="w-4 h-4" />
                         예약 생성

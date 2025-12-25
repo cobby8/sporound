@@ -93,7 +93,25 @@ export default function UserManagementPage() {
             return;
         }
 
-        // 4. Delete Profile
+        // 4. Archive to deleted_profiles
+        const { error: archiveError } = await supabase
+            .from('deleted_profiles')
+            .insert({
+                id: user.id,
+                email: user.email,
+                name: user.name,
+                phone: user.phone,
+                role: user.role,
+                reason: '관리자에 의한 강제 탈퇴',
+                original_created_at: user.created_at
+            });
+
+        if (archiveError) {
+            console.error("Archive failed:", archiveError);
+            if (!confirm("탈퇴 회원 기록(아카이빙)에 실패했습니다. 그래도 계속 삭제하시겠습니까?")) return;
+        }
+
+        // 5. Delete Profile
         const { error } = await supabase
             .from('profiles')
             .delete()
@@ -104,6 +122,7 @@ export default function UserManagementPage() {
         } else {
             alert("정상적으로 탈퇴 처리되었습니다.");
             fetchUsers();
+            setSelectedUser(null);
         }
     };
 
@@ -112,14 +131,23 @@ export default function UserManagementPage() {
             <div className="flex justify-between items-center">
                 <h2 className="text-xl font-bold text-gray-800">회원 관리</h2>
 
-                <button
-                    onClick={() => router.push('/admin/users/admins')}
-                    className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-bold shadow-sm transition-colors"
-                >
-                    <Shield className="w-4 h-4" />
-                    관리자 권한 관리
-                    <ArrowRight className="w-4 h-4" />
-                </button>
+                <div className="flex gap-2">
+                    <button
+                        onClick={() => router.push('/admin/users/deleted')}
+                        className="flex items-center gap-2 px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg text-sm font-bold shadow-sm transition-colors"
+                    >
+                        <Trash2 className="w-4 h-4" />
+                        탈퇴 회원 관리
+                    </button>
+                    <button
+                        onClick={() => router.push('/admin/users/admins')}
+                        className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-bold shadow-sm transition-colors"
+                    >
+                        <Shield className="w-4 h-4" />
+                        관리자 권한 관리
+                        <ArrowRight className="w-4 h-4" />
+                    </button>
+                </div>
             </div>
 
             {/* Search */}

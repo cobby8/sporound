@@ -149,7 +149,8 @@ export async function getWeeklySchedule(startDateStr: string): Promise<TimeSlot[
         const targetCell = timeSlots[startRowIndex].courts[dayKey][courtName];
 
         // Display Priority: Team Name > User Name > Guest Name
-        const displayText = res.team_name || res.profiles?.name || res.guest_name || '예약됨';
+        const baseText = res.team_name || res.profiles?.name || res.guest_name || '예약됨';
+        const displayText = res.status === 'pending' ? `(대기) ${baseText}` : baseText;
 
         targetCell.text = displayText;
         targetCell.rowSpan = rowSpan;
