@@ -25,6 +25,11 @@ export function SignupModal({ isOpen, onClose, onLoginClick }: SignupModalProps)
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState(false);
 
+    const [verifyCode, setVerifyCode] = useState("");
+    const [isCodeSent, setIsCodeSent] = useState(false);
+    const [isVerified, setIsVerified] = useState(false);
+    const [timeLeft, setTimeLeft] = useState(180); // 3 minutes
+
     // Reset form when modal opens
     useEffect(() => {
         if (isOpen) {
@@ -38,12 +43,57 @@ export function SignupModal({ isOpen, onClose, onLoginClick }: SignupModalProps)
             });
             setError(null);
             setSuccess(false);
+
+            // Reset verification
+            setVerifyCode("");
+            setIsCodeSent(false);
+            setIsVerified(false);
+            setTimeLeft(180);
         }
     }, [isOpen]);
+
+    // Timer Logic
+    useEffect(() => {
+        let timer: NodeJS.Timeout;
+        if (isCodeSent && !isVerified && timeLeft > 0) {
+            timer = setInterval(() => {
+                setTimeLeft((prev) => prev - 1);
+            }, 1000);
+        }
+        return () => clearInterval(timer);
+    }, [isCodeSent, isVerified, timeLeft]);
 
     const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const formatted = formatPhoneNumber(e.target.value);
         setForm({ ...form, phone: formatted });
+        // Reset verification status if number changes
+        if (isCodeSent) {
+            setIsCodeSent(false);
+            setVerifyCode("");
+            setTimeLeft(180);
+        }
+    };
+
+    const handleSendCode = () => {
+        if (!form.phone || form.phone.length < 10) {
+            alert("올바른 휴대폰 번호를 입력해주세요.");
+            return;
+        }
+
+        // Mock Send API
+        setIsCodeSent(true);
+        setTimeLeft(180);
+        setVerifyCode("");
+        alert(`[TEST] 인증번호가 발송되었습니다.\n인증번호: 123456`);
+    };
+
+    const handleVerifyCode = () => {
+        if (verifyCode === "123456") {
+            setIsVerified(true);
+            alert("인증이 완료되었습니다.");
+        } else {
+            alert("인증번호가 올바르지 않습니다.");
+        }
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -51,6 +101,11 @@ export function SignupModal({ isOpen, onClose, onLoginClick }: SignupModalProps)
 
         if (form.password !== form.passwordConfirm) {
             setError("비밀번호가 일치하지 않습니다.");
+            return;
+        }
+
+        if (!isVerified) {
+            setError("휴대폰 인증을 완료해주세요.");
             return;
         }
 
@@ -234,21 +289,65 @@ export function SignupModal({ isOpen, onClose, onLoginClick }: SignupModalProps)
                                             </div>
                                         </div>
 
-                                        {/* Phone */}
+                                        {/* Phone Verification */}
                                         <div className="space-y-1">
                                             <label className="text-xs font-bold text-gray-600 ml-1">연락처</label>
-                                            <div className="relative">
-                                                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
-                                                <input
-                                                    type="tel"
-                                                    required
-                                                    value={form.phone}
-                                                    onChange={handlePhoneChange}
-                                                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 text-gray-900 placeholder:text-gray-500"
-                                                    placeholder="010-0000-0000"
-                                                    maxLength={13}
-                                                />
+                                            <div className="flex gap-2">
+                                                <div className="relative flex-1">
+                                                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
+                                                    <input
+                                                        type="tel"
+                                                        required
+                                                        value={form.phone}
+                                                        onChange={handlePhoneChange}
+                                                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 text-gray-900 placeholder:text-gray-500 disabled:bg-gray-100 disabled:text-gray-500"
+                                                        placeholder="010-0000-0000"
+                                                        maxLength={13}
+                                                        disabled={isVerified}
+                                                    />
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    onClick={handleSendCode}
+                                                    disabled={isVerified || !form.phone || form.phone.length < 12}
+                                                    className="px-3 py-2 bg-gray-900 text-white text-xs font-bold rounded-lg hover:bg-gray-800 disabled:bg-gray-300 disabled:cursor-not-allowed whitespace-nowrap transition-colors"
+                                                >
+                                                    {isCodeSent ? "재전송" : "인증번호 전송"}
+                                                </button>
                                             </div>
+
+                                            {/* Verification Code Input */}
+                                            {isCodeSent && !isVerified && (
+                                                <div className="flex gap-2 mt-2 animate-in fade-in slide-in-from-top-1">
+                                                    <div className="relative flex-1">
+                                                        <input
+                                                            type="text"
+                                                            value={verifyCode}
+                                                            onChange={(e) => setVerifyCode(e.target.value)}
+                                                            className="w-full px-4 py-2 border border-blue-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 placeholder:text-gray-500"
+                                                            placeholder="인증번호 6자리"
+                                                            maxLength={6}
+                                                        />
+                                                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-red-500 font-bold tabular-nums">
+                                                            {Math.floor(timeLeft / 60)}:{String(timeLeft % 60).padStart(2, '0')}
+                                                        </span>
+                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        onClick={handleVerifyCode}
+                                                        className="px-3 py-2 bg-blue-600 text-white text-xs font-bold rounded-lg hover:bg-blue-700 transition-colors whitespace-nowrap"
+                                                    >
+                                                        확인
+                                                    </button>
+                                                </div>
+                                            )}
+
+                                            {isVerified && (
+                                                <div className="flex items-center gap-1 mt-1 text-green-600 text-xs font-bold animate-in fade-in">
+                                                    <CheckCircle className="w-4 h-4" />
+                                                    <span>인증이 완료되었습니다.</span>
+                                                </div>
+                                            )}
                                         </div>
 
                                         {/* Purpose */}

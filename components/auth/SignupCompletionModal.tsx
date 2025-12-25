@@ -11,6 +11,7 @@ export function SignupCompletionModal() {
     const [user, setUser] = useState<User | null>(null);
     const [loading, setLoading] = useState(false);
     const [form, setForm] = useState({
+        name: "",
         phone: "",
         purpose: ""
     });
@@ -26,26 +27,30 @@ export function SignupCompletionModal() {
 
             // Check if phone or purpose is missing
             // 1. Check Metadata
+            const metaName = user.user_metadata?.full_name;
             const metaPhone = user.user_metadata?.phone;
             const metaPurpose = user.user_metadata?.signup_purpose;
 
             // 2. Check Profile (if synced)
             const { data: profile } = await supabase
                 .from('profiles')
-                .select('phone')
+                .select('name, phone')
                 .eq('id', user.id)
                 .single();
 
+            const profileName = profile?.name;
             const profilePhone = profile?.phone;
 
+            const hasName = !!(metaName || profileName);
             const hasPhone = !!(metaPhone || profilePhone);
-            const hasPurpose = !!metaPurpose; // We rely on metadata for purpose currently
+            const hasPurpose = !!metaPurpose;
 
-            if (!hasPhone || !hasPurpose) {
+            if (!hasName || !hasPhone || !hasPurpose) {
                 setIsOpen(true);
                 // Pre-fill if partial
                 setForm({
-                    phone: metaPhone || profilePhone || "",
+                    name: metaName || profileName || "",
+                    phone: formatPhoneNumber(metaPhone || profilePhone || ""),
                     purpose: metaPurpose || ""
                 });
             }
@@ -73,6 +78,7 @@ export function SignupCompletionModal() {
             // Update User Metadata
             const { error: updateError } = await supabase.auth.updateUser({
                 data: {
+                    full_name: form.name,
                     phone: form.phone,
                     signup_purpose: form.purpose
                 }
@@ -83,7 +89,10 @@ export function SignupCompletionModal() {
             // Also update Profile just in case
             await supabase
                 .from('profiles')
-                .update({ phone: form.phone }) // Update phone column
+                .update({
+                    name: form.name,
+                    phone: form.phone
+                })
                 .eq('id', user.id);
 
             alert("정보가 저장되었습니다.");
@@ -103,10 +112,22 @@ export function SignupCompletionModal() {
                 <div className="p-6">
                     <h2 className="text-xl font-bold text-center mb-2 text-gray-900">추가 정보 입력</h2>
                     <p className="text-sm text-center text-gray-600 mb-6 break-keep">
-                        원활한 서비스 이용을 위해<br />연락처와 가입 목적을 입력해주세요.
+                        원활한 서비스 이용을 위해<br />필수 정보를 입력해주세요.
                     </p>
 
                     <form onSubmit={handleSubmit} className="space-y-4">
+                        <div className="space-y-1">
+                            <label className="text-xs font-bold text-gray-600 ml-1">이름 <span className="text-red-500">*</span></label>
+                            <input
+                                type="text"
+                                required
+                                value={form.name}
+                                onChange={e => setForm({ ...form, name: e.target.value })}
+                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 text-gray-900 placeholder:text-gray-500"
+                                placeholder="홍길동"
+                            />
+                        </div>
+
                         <div className="space-y-1">
                             <label className="text-xs font-bold text-gray-600 ml-1">연락처 <span className="text-red-500">*</span></label>
                             <div className="relative">

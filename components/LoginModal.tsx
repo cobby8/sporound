@@ -18,20 +18,52 @@ export function LoginModal({ isOpen, onClose, onSignupClick }: LoginModalProps) 
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
+    const [showResend, setShowResend] = useState(false);
+
     const handleEmailLogin = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
         setError(null);
+        setShowResend(false);
 
         try {
             const { error } = await supabase.auth.signInWithPassword({
                 email,
                 password,
             });
-            if (error) throw error;
-            onClose(); // Close on success
+            if (error) {
+                if (error.message.includes("Email not confirmed")) {
+                    setError("이메일 인증을 완료해 주세요.");
+                    setShowResend(true);
+                } else {
+                    throw error;
+                }
+            } else {
+                onClose(); // Close on success
+            }
         } catch (err: any) {
-            setError(err.message || "오류가 발생했습니다.");
+            // Handle other specific errors if needed
+            if (err.message.includes("Invalid login credentials")) {
+                setError("이메일 또는 비밀번호가 올바르지 않습니다.");
+            } else {
+                setError(err.message || "오류가 발생했습니다.");
+            }
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleResendEmail = async () => {
+        setLoading(true);
+        try {
+            const { error } = await supabase.auth.resend({
+                type: 'signup',
+                email: email,
+            });
+            if (error) throw error;
+            alert("인증 메일이 재발송되었습니다. 이메일을 확인해주세요.");
+        } catch (err: any) {
+            alert("메일 발송 실패: " + err.message);
         } finally {
             setLoading(false);
         }
@@ -163,8 +195,17 @@ export function LoginModal({ isOpen, onClose, onSignupClick }: LoginModalProps) 
                                     </div>
 
                                     {error && (
-                                        <div className="p-3 bg-red-50 text-red-600 text-sm rounded-lg text-center break-keep">
-                                            {error}
+                                        <div className="p-3 bg-red-50 text-red-600 text-sm rounded-lg text-center break-keep flex flex-col gap-2">
+                                            <span>{error}</span>
+                                            {showResend && (
+                                                <button
+                                                    type="button"
+                                                    onClick={handleResendEmail}
+                                                    className="text-xs underline text-red-700 hover:text-red-900 font-bold"
+                                                >
+                                                    인증 메일 재발송하기
+                                                </button>
+                                            )}
                                         </div>
                                     )}
 
