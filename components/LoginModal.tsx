@@ -52,15 +52,21 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
 
     const handleSocialLogin = async (provider: string) => {
         setLoading(true);
+
+        let options: { redirectTo: string; scopes?: string; queryParams?: { [key: string]: string } } = {
+            redirectTo: `${window.location.origin}/auth/callback`,
+        };
+
+        if (provider === 'kakao') {
+            options.scopes = 'profile_nickname profile_image';
+            options.queryParams = {
+                scope: 'profile_nickname profile_image',
+            };
+        }
+
         const { error } = await supabase.auth.signInWithOAuth({
             provider: provider as Provider,
-            options: {
-                redirectTo: `${window.location.origin}/auth/callback`,
-                scopes: 'profile_nickname profile_image',
-                queryParams: {
-                    scope: 'profile_nickname profile_image',
-                },
-            },
+            options,
         });
         if (error) {
             setError(error.message);
