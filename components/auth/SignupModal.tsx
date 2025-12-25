@@ -172,7 +172,7 @@ export function SignupModal({ isOpen, onClose, onLoginClick }: SignupModalProps)
                                                     onChange={e => setForm({ ...form, email: e.target.value })}
                                                     className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 text-gray-900 placeholder:text-gray-500"
                                                     placeholder="name@example.com"
-                                                    autoComplete="off"
+                                                    autoComplete="username"
                                                 />
                                             </div>
                                         </div>
@@ -184,12 +184,13 @@ export function SignupModal({ isOpen, onClose, onLoginClick }: SignupModalProps)
                                                 <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
                                                 <input
                                                     type="text"
+                                                    name="name"
                                                     required
                                                     value={form.name}
                                                     onChange={e => setForm({ ...form, name: e.target.value })}
                                                     className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 text-gray-900 placeholder:text-gray-500"
                                                     placeholder="홍길동"
-                                                    autoComplete="off"
+                                                    autoComplete="name"
                                                 />
                                             </div>
                                         </div>
@@ -223,8 +224,8 @@ export function SignupModal({ isOpen, onClose, onLoginClick }: SignupModalProps)
                                                         value={form.passwordConfirm}
                                                         onChange={e => setForm({ ...form, passwordConfirm: e.target.value })}
                                                         className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 transition-all text-gray-900 placeholder:text-gray-500 ${form.passwordConfirm && form.password !== form.passwordConfirm
-                                                                ? "border-red-500 focus:ring-red-500"
-                                                                : "border-gray-300 focus:ring-pink-500"
+                                                            ? "border-red-500 focus:ring-red-500"
+                                                            : "border-gray-300 focus:ring-pink-500"
                                                             }`}
                                                         placeholder="한 번 더 입력"
                                                         autoComplete="new-password"
