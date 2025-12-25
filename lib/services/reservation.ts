@@ -71,7 +71,7 @@ export async function getWeeklySchedule(startDateStr: string): Promise<TimeSlot[
             .neq('status', 'rejected');
 
         if (result.error) {
-            console.error('Error fetching reservations:', result.error);
+            console.error('Error fetching reservations:', JSON.stringify(result.error, null, 2));
             return [];
         }
         reservations = result.data;

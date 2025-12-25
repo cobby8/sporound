@@ -56,6 +56,7 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
             provider: provider as Provider,
             options: {
                 redirectTo: `${window.location.origin}/auth/callback`,
+                scopes: 'profile_nickname profile_image',
             },
         });
         if (error) {
