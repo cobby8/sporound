@@ -123,6 +123,7 @@ export function UserDetailModal({ isOpen, onClose, user }: UserDetailModalProps)
                                         <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">시간</th>
                                         <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">코트</th>
                                         <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">상태</th>
+                                        <th className="px-4 py-2 text-right text-xs font-medium text-gray-500">관리</th>
                                     </tr>
                                 </thead>
                                 <tbody className="bg-white divide-y divide-gray-200">
@@ -139,6 +140,23 @@ export function UserDetailModal({ isOpen, onClose, user }: UserDetailModalProps)
                                             </td>
                                             <td className="px-4 py-2">
                                                 {getStatusBadge(res.status)}
+                                            </td>
+                                            <td className="px-4 py-2 text-right">
+                                                <button
+                                                    onClick={async () => {
+                                                        if (!confirm("정말 이 예약을 삭제하시겠습니까?")) return;
+                                                        const { error } = await supabase.from('reservations').delete().eq('id', res.id);
+                                                        if (error) alert("삭제 실패: " + error.message);
+                                                        else {
+                                                            alert("삭제되었습니다.");
+                                                            fetchUserReservations();
+                                                        }
+                                                    }}
+                                                    className="text-red-500 hover:text-red-700 bg-red-50 p-1.5 rounded transition-colors"
+                                                    title="예약 삭제"
+                                                >
+                                                    <XCircle className="w-4 h-4" />
+                                                </button>
                                             </td>
                                         </tr>
                                     ))}

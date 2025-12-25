@@ -78,8 +78,9 @@ export default function AdminAdminsPage() {
             alert("처리 실패: " + error.message);
         } else {
             alert("관리자로 승격되었습니다.");
-            setSearchedUsers(searchedUsers.filter(u => u.id !== user.id));
-            fetchAdmins();
+            // Explicitly refresh both lists to ensure data consistency
+            await fetchAdmins();
+            await fetchNonAdmins(searchQuery);
         }
     };
 
@@ -95,8 +96,9 @@ export default function AdminAdminsPage() {
             alert("처리 실패: " + error.message);
         } else {
             alert("권한이 해제되었습니다.");
-            fetchAdmins();
-            fetchNonAdmins(searchQuery); // Refresh list
+            // Explicitly refresh both lists to ensure data consistency
+            await fetchAdmins();
+            await fetchNonAdmins(searchQuery);
         }
     };
 

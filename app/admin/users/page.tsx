@@ -41,10 +41,47 @@ export default function UserManagementPage() {
     };
 
     const handleWithdraw = async (user: any) => {
-        const confirmMsg = `[주의] ${user.name || user.email} 님을 강제 탈퇴시키시겠습니까?\n\n탈퇴 시 해당 회원의 모든 정보와 예약 내역이 영구적으로 삭제될 수 있습니다.`;
+        // 1. Check for Future Reservations
+        const now = new Date();
+        const { data: reservations, error: checkError } = await supabase
+            .from('reservations')
+            .select('date, end_time')
+            .eq('user_id', user.id);
+
+        if (checkError) {
+            alert("예약 정보를 확인하는 중 오류가 발생했습니다.");
+            return;
+        }
+
+        const futureReservations = reservations?.filter(res => {
+            const resDate = new Date(res.date);
+            const resEndTime = res.end_time; // assuming format "HH:MM"
+
+            // Compare Date
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            resDate.setHours(0, 0, 0, 0);
+
+            if (resDate > today) return true;
+            if (resDate.getTime() === today.getTime()) {
+                // If today, compare time (simple string comparison works for HH:MM 24h)
+                const currentTime = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+                return resEndTime > currentTime;
+            }
+            return false;
+        }) || [];
+
+        if (futureReservations.length > 0) {
+            alert(`[탈퇴 불가]\n\n아직 진행되지 않은 예약이 ${futureReservations.length}건 남아있어 탈퇴할 수 없습니다.\n\n[상세] 버튼을 눌러 해당 예약을 먼저 취소/삭제해주세요.`);
+            setSelectedUser(user); // Open Modal
+            return;
+        }
+
+        // 2. Confirm Withdrawal
+        const confirmMsg = `[주의] ${user.name || user.email} 님을 강제 탈퇴시키시겠습니까?\n\n탈퇴 시 해당 회원의 모든 정보와 지난 예약 내역이 영구적으로 삭제됩니다.`;
         if (!confirm(confirmMsg)) return;
 
-        // 1. Delete Reservations first (to avoid FK constraints)
+        // 3. Delete Past Reservations (to avoid FK constraints)
         const { error: resError } = await supabase
             .from('reservations')
             .delete()
@@ -56,7 +93,7 @@ export default function UserManagementPage() {
             return;
         }
 
-        // 2. Delete Profile
+        // 4. Delete Profile
         const { error } = await supabase
             .from('profiles')
             .delete()
