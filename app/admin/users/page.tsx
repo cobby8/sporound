@@ -2,12 +2,16 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
-import { Loader2, Search, Shield, ShieldAlert, User } from "lucide-react";
+import { Loader2, Search, Shield, ArrowRight, User, Eye, Trash2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { UserDetailModal } from "@/components/admin/UserDetailModal";
 
 export default function UserManagementPage() {
+    const router = useRouter();
     const [loading, setLoading] = useState(true);
     const [users, setUsers] = useState<any[]>([]);
     const [searchQuery, setSearchQuery] = useState("");
+    const [selectedUser, setSelectedUser] = useState<any>(null);
 
     const fetchUsers = async () => {
         setLoading(true);
@@ -36,29 +40,40 @@ export default function UserManagementPage() {
         fetchUsers();
     };
 
-    const toggleRole = async (userId: string, currentRole: string) => {
-        const newRole = currentRole === 'admin' ? 'user' : 'admin';
-        const confirmMsg = newRole === 'admin'
-            ? "이 사용자를 관리자로 승격하시겠습니까?"
-            : "이 사용자의 관리자 권한을 해제하시겠습니까?";
-
+    const handleWithdraw = async (user: any) => {
+        const confirmMsg = `[주의] ${user.name || user.email} 님을 강제 탈퇴시키시겠습니까?\n\n탈퇴 시 해당 회원의 모든 정보와 예약 내역이 영구적으로 삭제될 수 있습니다.`;
         if (!confirm(confirmMsg)) return;
 
+        // Note: This only deletes from 'public.profiles'. 
+        // If there is a cascading delete on 'auth.users', fine. 
+        // Otherwise, they lose profile but auth account remains (but effectively broken).
         const { error } = await supabase
             .from('profiles')
-            .update({ role: newRole })
-            .eq('id', userId);
+            .delete()
+            .eq('id', user.id);
 
         if (error) {
-            alert("권한 변경 실패: " + error.message);
+            alert("탈퇴 처리 실패: " + error.message);
         } else {
+            alert("정상적으로 탈퇴 처리되었습니다.");
             fetchUsers();
         }
     };
 
     return (
         <div className="space-y-6">
-            <h2 className="text-xl font-bold text-gray-800">회원 관리</h2>
+            <div className="flex justify-between items-center">
+                <h2 className="text-xl font-bold text-gray-800">회원 관리</h2>
+
+                <button
+                    onClick={() => router.push('/admin/users/admins')}
+                    className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-bold shadow-sm transition-colors"
+                >
+                    <Shield className="w-4 h-4" />
+                    관리자 권한 관리
+                    <ArrowRight className="w-4 h-4" />
+                </button>
+            </div>
 
             {/* Search */}
             <form onSubmit={handleSearch} className="flex gap-2 mb-6">
@@ -96,8 +111,14 @@ export default function UserManagementPage() {
                                 </tr>
                             </thead>
                             <tbody className="bg-white divide-y divide-gray-200">
-                                {users.map((user) => (
-                                    <tr key={user.id}>
+                                {users.length === 0 ? (
+                                    <tr>
+                                        <td colSpan={5} className="px-6 py-10 text-center text-gray-500">
+                                            검색 결과가 없습니다.
+                                        </td>
+                                    </tr>
+                                ) : users.map((user) => (
+                                    <tr key={user.id} className="hover:bg-gray-50">
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <div className="flex items-center">
                                                 <div className="flex-shrink-0 h-10 w-10">
@@ -126,15 +147,22 @@ export default function UserManagementPage() {
                                             </span>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                            <button
-                                                onClick={() => toggleRole(user.id, user.role)}
-                                                className={`text-xs px-3 py-1 rounded border transition-colors ${user.role === 'admin'
-                                                        ? 'border-gray-300 text-gray-600 hover:bg-gray-50'
-                                                        : 'border-purple-200 text-purple-600 hover:bg-purple-50'
-                                                    }`}
-                                            >
-                                                {user.role === 'admin' ? '권한 해제' : '관리자 승격'}
-                                            </button>
+                                            <div className="flex justify-end gap-2">
+                                                <button
+                                                    onClick={() => setSelectedUser(user)}
+                                                    className="text-gray-600 hover:text-blue-600 bg-gray-50 hover:bg-blue-50 px-3 py-1.5 rounded flex items-center gap-1 text-xs transition-colors border border-gray-200"
+                                                >
+                                                    <Eye className="w-3 h-3" /> 상세
+                                                </button>
+                                                {user.role !== 'admin' && ( // Don't allow deleting admins here easily
+                                                    <button
+                                                        onClick={() => handleWithdraw(user)}
+                                                        className="text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded flex items-center gap-1 text-xs transition-colors"
+                                                    >
+                                                        <Trash2 className="w-3 h-3" /> 탈퇴
+                                                    </button>
+                                                )}
+                                            </div>
                                         </td>
                                     </tr>
                                 ))}
@@ -143,6 +171,12 @@ export default function UserManagementPage() {
                     </div>
                 )}
             </div>
+
+            <UserDetailModal
+                isOpen={!!selectedUser}
+                onClose={() => setSelectedUser(null)}
+                user={selectedUser}
+            />
         </div>
     );
 }
