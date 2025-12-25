@@ -9,27 +9,29 @@ export default function AuthCallbackPage() {
     const router = useRouter();
 
     useEffect(() => {
-        // The Supabase client automatically handles the code exchange
-        // when it detects the 'code' or 'error' parameters in the URL.
-        // We just need to wait a moment or check the session, then redirect.
-
         const handleAuth = async () => {
-            // Retrieve session (this triggers the auto-detection if needed)
+            // Retrieve session
             const { data: { session } } = await supabase.auth.getSession();
 
-            // Also listen for the SIGNED_IN event which might fire after code exchange
-            supabase.auth.onAuthStateChange((event, session) => {
+            if (session) {
+                // Force hard redirect to ensure clean state
+                window.location.replace('/');
+                return;
+            }
+
+            // Listen for changes
+            const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
                 if (event === 'SIGNED_IN' || session) {
-                    router.push('/'); // Redirect to home on success
-                    router.refresh(); // Ensure server components re-run if needed
+                    window.location.replace('/');
                 }
             });
 
-            // Fallback: If we already have a session, redirect immediately
-            if (session) {
-                router.push('/');
-                router.refresh();
-            }
+            // Failsafe: Redirect after 3 seconds anyway if stuck (user likely logged in via other tab/header)
+            setTimeout(() => {
+                window.location.replace('/');
+            }, 3000);
+
+            return () => subscription.unsubscribe();
         };
 
         handleAuth();
