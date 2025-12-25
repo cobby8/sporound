@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { formatPhoneNumber } from "@/lib/utils/format";
 import { GlassModalWrapper } from "./ui/GlassModalWrapper";
 import { PackageCard } from "./ui/PackageCard";
+import { useDynamicPricing } from "@/hooks/useDynamicPricing";
 
 interface ReservationModalProps {
     isOpen: boolean;

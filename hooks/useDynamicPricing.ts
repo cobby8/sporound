@@ -20,7 +20,7 @@ export function useDynamicPricing() {
     }, []);
 
     const getPrice = useCallback((date: Date, startTime: string, endTime: string, courtName: 'pink' | 'mint') => {
-        if (loading) return { total: 0, rules: [] }; // Updated to match return signature
+        if (loading) return { total: 0, breakdown: [] }; // Updated to match return signature
 
         const courtRules = rules.filter(r => r.name.toLowerCase().includes(courtName.toLowerCase()));
         const globalRules = rules.filter(r => r.court_id === null);
