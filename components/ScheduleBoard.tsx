@@ -172,16 +172,130 @@ export function ScheduleBoard({ schedule, startDate, onOccupiedCellClick, onRese
         setSelectedSlots(newSelection);
     };
 
+    // Touch Drag Handling
+    const handleTouchStart = (e: React.TouchEvent, time: string, dayIndex: number, court: "pink" | "mint", isOccupied: boolean, reservationId?: string) => {
+        if (isOccupied) return;
+        // e.preventDefault(); // CAREFUL: This might block scrolling. Only prevent if necessary.
+        // For vertical drag, we might want to block scroll, but horizontal?
+        // Let's rely on standard logic but mark dragging.
+
+        const targetDate = formatDateFull(getDayDate(dayIndex));
+        const startSlot = { time, dayIndex, court, date: targetDate };
+
+        setIsDragging(true);
+        setDragStart(startSlot);
+        setSelectedSlots([startSlot]); // Start fresh selection
+    };
+
+    const handleTouchMove = (e: React.TouchEvent) => {
+        if (!isDragging || !dragStart) return;
+
+        // Find element under touch
+        const touch = e.touches[0];
+        const element = document.elementFromPoint(touch.clientX, touch.clientY);
+
+        // We need to identify the slot from the element. 
+        // We can add data attributes to the cell divs to make this easier.
+        const cell = element?.closest('[data-slot-time]');
+        if (cell) {
+            const time = cell.getAttribute('data-slot-time');
+            const dayIndex = Number(cell.getAttribute('data-day-index'));
+            const court = cell.getAttribute('data-court') as "pink" | "mint";
+
+            if (time && !isNaN(dayIndex) && court) {
+                // Check if occupied? The selection logic filters occupied anyway.
+                handleCellMouseEnter(time, dayIndex, court, false);
+            }
+        }
+    };
+
     const handleCellClick = (time: string, dayIndex: number, court: "pink" | "mint", isOccupied: boolean, reservationId?: string, e?: React.MouseEvent) => {
-        // Only handle occupied clicks or non-drag clicks
-        // If we just finished a drag, handleCellClick might fire on mouseup. 
-        // We can usually ignore it if it was a drag, but the click is fine if it just sets selection (duplicate work).
-        // However, specifically for Occupied, we must handle it.
         if (isOccupied) {
             if (reservationId && onOccupiedCellClick) {
                 onOccupiedCellClick(reservationId, e);
             }
             return;
+        }
+
+        // Logic 3: Toggle / Range Selection
+        const targetDate = formatDateFull(getDayDate(dayIndex));
+        const clickedSlot = { time, dayIndex, court, date: targetDate };
+
+        // Check if already selected
+        const isAlreadySelected = selectedSlots.some(s => s.time === time && s.dayIndex === dayIndex && s.court === court);
+
+        if (isAlreadySelected) {
+            // "Select selected slot again to deselect"
+            // If it's the ONLY selected slot, clear all.
+            // If there are multiple, deselect just this one? Or clear all? 
+            // User: "Selecting selected slot again deselects it"
+            // If it's part of a range, breaking the range might be weird.
+            // Let's implement toggle.
+            const newSelection = selectedSlots.filter(s => !(s.time === time && s.court === court && s.dayIndex === dayIndex));
+            setSelectedSlots(newSelection);
+            return;
+        }
+
+        // Feature 2: Range Click (Select one -> Select another)
+        if (selectedSlots.length === 1) {
+            const start = selectedSlots[0];
+
+            // Check if same day and same court
+            if (start.dayIndex === dayIndex && start.court === court) {
+                // Determine range
+                const startMins = toMinutes(start.time);
+                const endMins = toMinutes(time);
+                const min = Math.min(startMins, endMins);
+                const max = Math.max(startMins, endMins);
+
+                const rangeSlots: typeof selectedSlots = [];
+
+                // Fill range
+                schedule.forEach(slot => {
+                    const t = toMinutes(slot.time);
+                    if (t >= min && t <= max) {
+                        const courtData = court === 'pink' ? slot.courts[DAYS[dayIndex].key].pink : slot.courts[DAYS[dayIndex].key].mint;
+                        if (!courtData.text && !courtData.reservationId) {
+                            rangeSlots.push({
+                                time: slot.time,
+                                dayIndex,
+                                court,
+                                date: targetDate
+                            });
+                        }
+                    }
+                });
+
+                setSelectedSlots(rangeSlots);
+                return;
+            }
+        }
+
+        // Default: Add single slot or start new selection? 
+        // User said: "Two actions both work". 
+        // If I click A then B, it selects range.
+        // If I click A then C (different day), it should probably just switch to C.
+        if (selectedSlots.length > 0 && (selectedSlots[0].dayIndex !== dayIndex || selectedSlots[0].court !== court)) {
+            // Reset selection if different context
+            setSelectedSlots([clickedSlot]);
+        } else {
+            // If multiple slots selected, and we click a new one outside, 
+            // usually we clear and start new, or add to it.
+            // Given "Range" logic is prioritized for 2 clicks, let's reset if we click outside an existing range 
+            // unless we want to support multi-range (likely not).
+            // Let's behave like Windows Explorer: Click = Select Only This. Ctrl+Click = Add. 
+            // But mobile doesn't have Ctrl.
+            // Implied logic: Single Click = Start New Selection.
+            // BUT we need to support "Select one then select another".
+            // So:
+            // 0 Selected: Click -> Selects it.
+            // 1 Selected: Click -> Range Selects (if same context).
+            // >1 Selected: Click -> Reset and Select New? Or Toggle? 
+            // User: "Selected can be unselected by clicking".
+            // So if >1 and I click a NEW one... let's just add it? No, continuous time is preferred.
+            // Let's simplistic approach:
+            // If > 1 selected, clicking a new unselected one -> Start Fresh.
+            setSelectedSlots([clickedSlot]);
         }
     };
 
@@ -407,15 +521,20 @@ export function ScheduleBoard({ schedule, startDate, onOccupiedCellClick, onRese
                                     return (
                                         <div
                                             key={`${day.key}-${courtType}-${slot.time}`} // Unique key
+                                            data-slot-time={slot.time}
+                                            data-day-index={dIdx}
+                                            data-court={courtType}
                                             style={{
                                                 gridRow: `span ${courtData.rowSpan}`,
                                                 ...customStyle
                                             }}
                                             onMouseDown={(e) => handleCellMouseDown(slot.time, dIdx, courtType, isOccupied, courtData.reservationId, e)}
                                             onMouseEnter={() => handleCellMouseEnter(slot.time, dIdx, courtType, isOccupied)}
+                                            onTouchStart={(e) => handleTouchStart(e, slot.time, dIdx, courtType, isOccupied, courtData.reservationId)}
+                                            onTouchMove={handleTouchMove}
                                             onClick={(e) => handleCellClick(slot.time, dIdx, courtType, isOccupied, courtData.reservationId, e)}
                                             className={cn(
-                                                "border-r border-b border-gray-100 flex items-center justify-center text-center px-0.5 py-0 cursor-pointer transition-all relative z-10 select-none",
+                                                "border-r border-b border-gray-100 flex items-center justify-center text-center px-0.5 py-0 cursor-pointer transition-all relative z-10 select-none touch-none", // Added touch-none to prevent scroll while dragging
                                                 !customStyle && bgColorClass,
                                                 !customStyle && finalTextColor,
                                                 dIdx === selectedDayIndex ? "flex" : "hidden md:flex",
@@ -479,12 +598,12 @@ export function ScheduleBoard({ schedule, startDate, onOccupiedCellClick, onRese
                 <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50 animate-in fade-in slide-in-from-bottom-4">
                     <button
                         onClick={handleReserveClick}
-                        className="bg-gray-900 text-white px-8 py-3 rounded-full shadow-xl font-bold text-lg hover:bg-gray-800 transition-colors flex items-center gap-2"
+                        className="bg-gray-900 text-white px-6 py-2.5 md:px-8 md:py-3 rounded-full shadow-xl font-bold text-sm md:text-lg hover:bg-gray-800 transition-colors flex items-center gap-2"
                     >
                         <span>{getDurationLabel()} 선택됨</span>
-                        <span className="w-1 h-4 bg-gray-600 rounded-full" />
+                        <span className="w-1 h-3 md:w-1 md:h-4 bg-gray-600 rounded-full" />
                         <span className="text-pink-400">예약하기</span>
-                        <ChevronRight className="w-5 h-5 text-gray-400" />
+                        <ChevronRight className="w-4 h-4 md:w-5 md:h-5 text-gray-400" />
                     </button>
                 </div>
             )}

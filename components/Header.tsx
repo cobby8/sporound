@@ -8,7 +8,7 @@ import { supabase } from "@/lib/supabase";
 import { User } from "@supabase/supabase-js";
 import { LoginModal } from "./LoginModal";
 import { SignupModal } from "./auth/SignupModal";
-import { LogOut, User as UserIcon } from "lucide-react";
+import { LogOut, User as UserIcon, Menu, X } from "lucide-react";
 
 export function Header() {
     const pathname = usePathname();
@@ -64,15 +64,34 @@ export function Header() {
         setIsLoginModalOpen(true);
     };
 
+    const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
+    const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+    // Close menu when route changes
+    useEffect(() => {
+        setIsMenuOpen(false);
+    }, [pathname]);
+
     return (
         <>
             <header className="sticky top-0 z-40 w-full bg-white/80 backdrop-blur-md border-b border-gray-100">
                 <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-                    <Link href="/" className="font-extrabold text-xl tracking-tight">
-                        <span className="text-pink-600">SPO</span><span className="text-gray-900">ROUND</span>
-                    </Link>
+                    <div className="flex items-center gap-4">
+                        {/* Mobile Menu Button - Visible only on mobile */}
+                        <button
+                            className="md:hidden p-2 -ml-2 text-gray-600 hover:text-gray-900"
+                            onClick={toggleMenu}
+                        >
+                            {isMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+                        </button>
+
+                        <Link href="/" className="font-extrabold text-xl tracking-tight">
+                            <span className="text-pink-600">SPO</span><span className="text-gray-900">ROUND</span>
+                        </Link>
+                    </div>
 
                     <div className="flex items-center gap-6">
+                        {/* Desktop Navigation */}
                         <nav className="hidden md:flex gap-6">
                             <Link
                                 href="/"
@@ -148,6 +167,29 @@ export function Header() {
                         )}
                     </div>
                 </div>
+
+                {/* Mobile Menu Dropdown */}
+                {isMenuOpen && (
+                    <div className="md:hidden border-t border-gray-100 bg-white absolute w-full left-0 shadow-lg">
+                        <div className="flex flex-col p-4 space-y-4">
+                            <Link href="/" className="text-base font-medium text-gray-700 py-2 border-b border-gray-50">대관/예약</Link>
+                            <Link href="/programs" className="text-base font-medium text-gray-700 py-2 border-b border-gray-50">프로그램 소개</Link>
+                            <Link href="/info/facility" className="text-base font-medium text-gray-700 py-2 border-b border-gray-50">시설 안내</Link>
+                            <Link href="/info/guide" className="text-base font-medium text-gray-700 py-2 border-b border-gray-50">이용 안내</Link>
+                            {user && (
+                                <Link href="/mypage" className="text-base font-medium text-gray-700 py-2 border-b border-gray-50 flex items-center justify-between">
+                                    마이페이지
+                                    <span className="text-xs text-gray-500">{user.user_metadata.full_name}</span>
+                                </Link>
+                            )}
+                            {isAdmin && (
+                                <Link href="/admin" className="text-base font-bold text-pink-600 py-2">
+                                    관리자 모드 접속
+                                </Link>
+                            )}
+                        </div>
+                    </div>
+                )}
             </header>
 
             <LoginModal
