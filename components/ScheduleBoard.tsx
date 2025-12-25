@@ -566,14 +566,18 @@ export function ScheduleBoard({ schedule, startDate, onOccupiedCellClick, onRese
                                                 gridRow: `span ${courtData.rowSpan}`,
                                                 ...customStyle
                                             }}
-                                            onMouseDown={(e) => handleCellMouseDown(slot.time, dIdx, courtType, isOccupied, courtData.reservationId, e)}
                                             onMouseEnter={() => handleCellMouseEnter(slot.time, dIdx, courtType, isOccupied)}
-                                            onTouchStart={(e) => handleTouchStart(e, slot.time, dIdx, courtType, isOccupied, courtData.reservationId)}
-                                            onTouchMove={handleTouchMove}
-                                            onTouchEnd={handleTouchEnd}
-                                            onClick={(e) => handleCellClick(slot.time, dIdx, courtType, isOccupied, courtData.reservationId, e)}
+                                            onPointerDown={(e) => handlePointerDown(e, slot.time, dIdx, courtType, isOccupied, courtData.reservationId)}
+                                            onPointerMove={handlePointerMove}
+                                            onPointerUp={(e) => handlePointerUp(e, slot.time, dIdx, courtType, isOccupied, courtData.reservationId)}
+                                            onPointerCancel={handlePointerCancel}
                                             className={cn(
-                                                "border-r border-b border-gray-100 flex items-center justify-center text-center px-0.5 py-0 cursor-pointer transition-all relative z-10 select-none", // Removed touch-none to allow scrolling during delay
+                                                "border-r border-b border-gray-100 flex items-center justify-center text-center px-0.5 py-0 cursor-pointer transition-all relative z-10 select-none",
+                                                // touch-action: pan-y allows vertical scroll but lets us capture pointer for horizontal/custom logic if we want.
+                                                // Actually, we want default behavior until we capture. 
+                                                // "touch-action-pan-y" is a Tailwind class (check if exists or use inline style)
+                                                // Assuming standard tailwind:
+                                                "touch-pan-y",
                                                 !customStyle && bgColorClass,
                                                 !customStyle && finalTextColor,
                                                 dIdx === selectedDayIndex ? "flex" : "hidden md:flex",
