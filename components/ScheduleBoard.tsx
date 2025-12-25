@@ -53,6 +53,8 @@ export function ScheduleBoard({ schedule, startDate, onOccupiedCellClick, onRese
     });
 
     const [isDragging, setIsDragging] = useState(false);
+    const isDraggingRef = useRef(false); // Ref for instant access in event listeners
+
     const [dragStart, setDragStart] = useState<{
         time: string;
         dayIndex: number;
@@ -63,11 +65,39 @@ export function ScheduleBoard({ schedule, startDate, onOccupiedCellClick, onRese
     useEffect(() => {
         const handleGlobalMouseUp = () => {
             setIsDragging(false);
+            isDraggingRef.current = false;
             setDragStart(null);
         };
         window.addEventListener('mouseup', handleGlobalMouseUp);
-        return () => window.removeEventListener('mouseup', handleGlobalMouseUp);
+
+        // AGGRESSIVE SCROLL LOCK (Capture Phase)
+        const preventScroll = (e: TouchEvent) => {
+            if (isDraggingRef.current) {
+                e.preventDefault();
+                e.stopPropagation(); // Try to stop it from reaching browser default handlers
+            }
+        };
+
+        // Attach to window with capture=true to intercept before scrolling starts
+        window.addEventListener('touchmove', preventScroll, { passive: false, capture: true });
+
+        return () => {
+            window.removeEventListener('mouseup', handleGlobalMouseUp);
+            window.removeEventListener('touchmove', preventScroll, { capture: true });
+        };
     }, []);
+
+    // Sync Ref with State
+    useEffect(() => {
+        isDraggingRef.current = isDragging;
+        if (isDragging) {
+            document.body.style.overflow = "hidden";
+            document.body.style.touchAction = "none"; // Global touch action disable
+        } else {
+            document.body.style.overflow = "";
+            document.body.style.touchAction = "";
+        }
+    }, [isDragging]);
 
     // Calculate dates for headers
     const getDayDate = (dayIndex: number) => {
@@ -172,31 +202,7 @@ export function ScheduleBoard({ schedule, startDate, onOccupiedCellClick, onRese
         setSelectedSlots(newSelection);
     };
 
-    // Lock scroll when dragging (Mobile/Touch specific)
-    // Pointer Events 'setPointerCapture' usually handles this, but on some touch devices, 
-    // the browser claims the gesture for scrolling first. 
-    // We add a non-passive touchmove listener to FORCE preventDefault.
-    useEffect(() => {
-        const preventScroll = (e: TouchEvent) => {
-            if (isDragging) {
-                e.preventDefault();
-            }
-        };
-
-        if (isDragging) {
-            // Passive: false is required to allow preventDefault
-            document.addEventListener('touchmove', preventScroll, { passive: false });
-            // Also lock body overflow just in case
-            document.body.style.overflow = "hidden";
-        } else {
-            document.body.style.overflow = "";
-        }
-
-        return () => {
-            document.removeEventListener('touchmove', preventScroll);
-            document.body.style.overflow = "";
-        };
-    }, [isDragging]);
+    // Old useEffect removed. Logic moved to mount effect with Ref.
 
     // --- POINTER EVENTS IMPLEMENTATION (Robust Scroll Lock & Unified Logic) ---
 
