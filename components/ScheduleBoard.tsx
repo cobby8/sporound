@@ -435,9 +435,16 @@ export function ScheduleBoard({ schedule, startDate, onOccupiedCellClick, onRese
                                             )}
 
                                             {isOccupied ? (
-                                                <span className="font-bold text-[11px] md:text-xs leading-none break-all block w-full overflow-hidden relative z-10">
-                                                    {courtData.text}
-                                                </span>
+                                                <div className="flex flex-col items-center justify-center w-full h-full overflow-hidden leading-tight">
+                                                    <span className="font-bold text-[11px] md:text-xs truncate max-w-full relative z-10">
+                                                        {courtData.text.replace('(대기) ', '')}
+                                                    </span>
+                                                    {courtData.text.includes('(대기)') && (
+                                                        <span className="text-[9px] md:text-[10px] font-medium relative z-10 text-red-600 bg-white/50 px-1 rounded-sm mt-0.5">
+                                                            (승인대기)
+                                                        </span>
+                                                    )}
+                                                </div>
                                             ) : isSelected ? (
                                                 <span className="text-[10px] relative z-10">선택</span>
                                             ) : null}

@@ -266,7 +266,8 @@ export default function AdminPage() {
         });
 
         return items;
-    }, [reservations, groupBy, searchTerm]);
+        return items;
+    }, [reservations, groupBy, searchTerm, filterStatus, filterCourt, filterStartDate, filterEndDate]);
 
     // Calendar Data Generation Use String Comparison
     const weeklySchedule = useMemo(() => {
@@ -378,84 +379,83 @@ export default function AdminPage() {
             </div>
 
             {/* Filter Bar */}
-            <div className="px-6 py-3 bg-gray-50 border-b border-gray-200 flex flex-wrap items-center gap-3">
-                <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-gray-500">상태</span>
-                    <select
-                        value={filterStatus}
-                        onChange={(e) => setFilterStatus(e.target.value as any)}
-                        className="text-sm border-gray-300 rounded-md shadow-sm focus:border-black focus:ring-black"
-                    >
-                        <option value="all">전체</option>
-                        <option value="pending">대기중</option>
-                        <option value="confirmed">승인됨</option>
-                        <option value="canceled">취소됨</option>
-                    </select>
+            <div className="px-6 py-3 bg-gray-50 border-b border-gray-200 flex flex-wrap items-center justify-between gap-3">
+                <div className="flex flex-wrap items-center gap-3">
+                    <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-gray-500">상태</span>
+                        <select
+                            value={filterStatus}
+                            onChange={(e) => setFilterStatus(e.target.value as any)}
+                            className="text-sm border-gray-300 rounded-md shadow-sm focus:border-black focus:ring-black text-gray-900 font-medium"
+                        >
+                            <option value="all" className="text-gray-500">전체</option>
+                            <option value="pending" className="text-black">대기중</option>
+                            <option value="confirmed" className="text-black">승인됨</option>
+                            <option value="canceled" className="text-black">취소됨</option>
+                        </select>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-gray-500">코트</span>
+                        <select
+                            value={filterCourt}
+                            onChange={(e) => setFilterCourt(e.target.value as any)}
+                            className="text-sm border-gray-300 rounded-md shadow-sm focus:border-black focus:ring-black text-gray-900 font-medium"
+                        >
+                            <option value="all" className="text-gray-500">전체</option>
+                            <option value="pink" className="text-black">Pink</option>
+                            <option value="mint" className="text-black">Mint</option>
+                        </select>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-gray-500">기간</span>
+                        <input
+                            type="date"
+                            value={filterStartDate}
+                            onChange={(e) => setFilterStartDate(e.target.value)}
+                            className={`text-sm border-gray-300 rounded-md shadow-sm focus:border-black focus:ring-black ${filterStartDate ? 'text-gray-900' : 'text-gray-400'}`}
+                        />
+                        <span className="text-gray-400">~</span>
+                        <input
+                            type="date"
+                            value={filterEndDate}
+                            onChange={(e) => setFilterEndDate(e.target.value)}
+                            className={`text-sm border-gray-300 rounded-md shadow-sm focus:border-black focus:ring-black ${filterEndDate ? 'text-gray-900' : 'text-gray-400'}`}
+                        />
+                    </div>
+                    {(filterStatus !== 'all' || filterCourt !== 'all' || filterStartDate || filterEndDate) && (
+                        <button
+                            onClick={() => {
+                                setFilterStatus('all');
+                                setFilterCourt('all');
+                                setFilterStartDate('');
+                                setFilterEndDate('');
+                            }}
+                            className="text-xs text-red-600 hover:text-red-800 font-bold px-2 py-1 rounded hover:bg-red-50"
+                        >
+                            필터 초기화
+                        </button>
+                    )}
                 </div>
-                <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-gray-500">코트</span>
-                    <select
-                        value={filterCourt}
-                        onChange={(e) => setFilterCourt(e.target.value as any)}
-                        className="text-sm border-gray-300 rounded-md shadow-sm focus:border-black focus:ring-black"
-                    >
-                        <option value="all">전체</option>
-                        <option value="pink">Pink</option>
-                        <option value="mint">Mint</option>
-                    </select>
-                </div>
-                <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-gray-500">기간</span>
-                    <input
-                        type="date"
-                        value={filterStartDate}
-                        onChange={(e) => setFilterStartDate(e.target.value)}
-                        className="text-sm border-gray-300 rounded-md shadow-sm"
-                    />
-                    <span className="text-gray-400">~</span>
-                    <input
-                        type="date"
-                        value={filterEndDate}
-                        onChange={(e) => setFilterEndDate(e.target.value)}
-                        className="text-sm border-gray-300 rounded-md shadow-sm"
-                    />
-                </div>
-                {(filterStatus !== 'all' || filterCourt !== 'all' || filterStartDate || filterEndDate) && (
-                    <button
-                        onClick={() => {
-                            setFilterStatus('all');
-                            setFilterCourt('all');
-                            setFilterStartDate('');
-                            setFilterEndDate('');
-                        }}
-                        className="ml-auto text-xs text-red-600 hover:text-red-800 font-bold"
-                    >
-                        필터 초기화
-                    </button>
-                )}
 
                 <div className="flex items-center gap-2">
                     {viewMode === 'calendar' && (
                         <div className="flex items-center gap-2 mr-4 bg-gray-50 p-1 rounded-lg">
                             <button onClick={() => setCurrentDate(d => { const n = new Date(d); n.setDate(n.getDate() - 7); return n; })} className="p-1 hover:bg-white rounded shadow-sm"><ChevronDown className="w-4 h-4 rotate-90" /></button>
-                            <span className="text-sm font-bold min-w-[100px] text-center">{getWeekStartDate()}</span>
+                            <span className="text-sm font-bold min-w-[100px] text-center text-gray-900">{getWeekStartDate()}</span>
                             <button onClick={() => setCurrentDate(d => { const n = new Date(d); n.setDate(n.getDate() + 7); return n; })} className="p-1 hover:bg-white rounded shadow-sm"><ChevronDown className="w-4 h-4 -rotate-90" /></button>
                         </div>
                     )}
-                    <div className="flex items-center gap-2">
-
-                        <button
-                            onClick={() => {
-                                setCopyData(null);
-                                setCreatePrefill(null);
-                                setIsCreateModalOpen(true);
-                            }}
-                            className="flex items-center gap-2 bg-gray-900 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-gray-800"
-                        >
-                            <Plus className="w-4 h-4" />
-                            예약 생성
-                        </button>
-                    </div>
+                    <button
+                        onClick={() => {
+                            setCopyData(null);
+                            setCreatePrefill(null);
+                            setIsCreateModalOpen(true);
+                        }}
+                        className="flex items-center gap-2 bg-gray-900 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-gray-800 whitespace-nowrap"
+                    >
+                        <Plus className="w-4 h-4" />
+                        예약 생성
+                    </button>
                 </div>
             </div>
 
