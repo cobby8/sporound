@@ -3,7 +3,7 @@
 import { useState, Fragment, useEffect } from "react";
 import { TimeSlot, CellData } from "@/lib/data";
 import { cn } from "@/lib/utils";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, AlertTriangle } from "lucide-react";
 import { ReservationModal } from "@/components/ReservationModal";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
@@ -347,7 +347,13 @@ export function ScheduleBoard({ schedule, startDate, onOccupiedCellClick, onRese
                     ))}
 
                     {/* --- BODY --- */}
-                    {schedule.map((slot, rowIndex) => (
+                    {schedule.length === 0 ? (
+                        <div className="col-span-full flex flex-col items-center justify-center py-20 text-gray-500">
+                            <AlertTriangle className="w-10 h-10 mb-3 text-gray-300" />
+                            <p className="font-medium">일정 정보를 불러올 수 없습니다.</p>
+                            <p className="text-sm text-gray-400 mt-1">잠시 후 다시 시도해주시거나 관리자에게 문의하세요.</p>
+                        </div>
+                    ) : schedule.map((slot, rowIndex) => (
                         // We use React.Fragment to flatten the loop into the grid
                         <div key={`row-${rowIndex}`} className="contents">
                             {/* Time Slot */}
