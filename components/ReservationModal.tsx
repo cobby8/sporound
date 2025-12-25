@@ -34,6 +34,8 @@ export function ReservationModal({
         peopleCount: 1,
         useWaitingRoom: false,
         isLongTerm: false,
+        isAdjustmentRequested: false,
+        adjustmentReason: "",
     });
     const [totalPrice, setTotalPrice] = useState(0);
     const [duration, setDuration] = useState(1);
@@ -192,16 +194,18 @@ export function ReservationModal({
                 user_id: user.id,
                 people_count: formData.peopleCount,
                 total_price: totalPrice,
-                status: 'pending'
+                status: 'pending',
+                payment_status: formData.isAdjustmentRequested ? 'adjustment_requested' : 'unpaid',
+                adjustment_reason: formData.isAdjustmentRequested ? formData.adjustmentReason : null
             });
 
         if (error) {
             console.error(error);
             alert('예약 신청 중 오류가 발생했습니다.');
         } else {
-            alert(`예약이 접수되었습니다!\n\n[입금안내]\n하나은행 394-910573-99907 이창민\n입금액: ${totalPrice.toLocaleString()}원\n\n입금이 확인되면 예약이 확정됩니다.`);
+            alert(`예약이 접수되었습니다!${formData.isAdjustmentRequested ? '\n\n[안내] 대관비 조정 요청이 접수되었습니다.\n관리자 확인 후 최종 금액이 안내될 예정입니다.' : `\n\n[입금안내]\n하나은행 394-910573-99907 이창민\n입금액: ${totalPrice.toLocaleString()}원\n\n입금이 확인되면 예약이 확정됩니다.`}`);
             onClose();
-            setFormData({ name: "", contact: "", purpose: "", peopleCount: 1, useWaitingRoom: false, isLongTerm: false });
+            setFormData({ name: "", contact: "", purpose: "", peopleCount: 1, useWaitingRoom: false, isLongTerm: false, isAdjustmentRequested: false, adjustmentReason: "" });
         }
     };
 
@@ -352,6 +356,37 @@ export function ReservationModal({
                                             ℹ️ 50인 이상 행사 요금이 적용되었습니다.
                                         </div>
                                     )}
+
+                                    {/* Fee Adjustment Request */}
+                                    <div className="border border-gray-200 rounded-lg p-3 space-y-3">
+                                        <div className="flex items-center gap-2">
+                                            <input
+                                                type="checkbox"
+                                                id="adjustmentRequest"
+                                                className="w-4 h-4 text-pink-600 rounded focus:ring-pink-500"
+                                                checked={formData.isAdjustmentRequested}
+                                                onChange={(e) => setFormData({ ...formData, isAdjustmentRequested: e.target.checked })}
+                                            />
+                                            <label htmlFor="adjustmentRequest" className="text-sm text-gray-900 font-bold select-none cursor-pointer">
+                                                대관비 조정 요청
+                                            </label>
+                                        </div>
+                                        {formData.isAdjustmentRequested && (
+                                            <div>
+                                                <label className="block text-xs font-medium text-gray-600 mb-1">
+                                                    조정 사유
+                                                </label>
+                                                <textarea
+                                                    rows={2}
+                                                    required={formData.isAdjustmentRequested}
+                                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-pink-500 focus:outline-none text-gray-900 placeholder:text-gray-400"
+                                                    placeholder="장기 대관 할인, 학생 할인 적용 등"
+                                                    value={formData.adjustmentReason}
+                                                    onChange={(e) => setFormData({ ...formData, adjustmentReason: e.target.value })}
+                                                />
+                                            </div>
+                                        )}
+                                    </div>
 
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">

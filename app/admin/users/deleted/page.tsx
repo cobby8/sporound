@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
-import { Loader2, Search, ArrowLeft, Trash2, User } from "lucide-react";
+import { Loader2, Search, ArrowLeft, Trash2, User, ArchiveRestore } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 export default function DeletedUsersPage() {
@@ -38,6 +38,42 @@ export default function DeletedUsersPage() {
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
+        fetchDeletedUsers();
+    };
+
+    const handleRestore = async (user: any) => {
+        if (!confirm(`[복구 확인]\n\n${user.name || user.email} 님을 복구하시겠습니까?\n\n복구 시 일반 회원 권한으로 복구됩니다.`)) return;
+
+        // 1. Insert back to profiles
+        const { error: insertError } = await supabase
+            .from('profiles')
+            .insert({
+                id: user.id,
+                email: user.email,
+                name: user.name,
+                phone: user.phone,
+                role: 'user', // Default to user on restore
+                created_at: user.original_created_at || new Date().toISOString()
+            });
+
+        if (insertError) {
+            console.error("Restore failed (insert):", insertError);
+            alert("복구 실패: " + insertError.message);
+            return;
+        }
+
+        // 2. Delete from deleted_profiles
+        const { error: deleteError } = await supabase
+            .from('deleted_profiles')
+            .delete()
+            .eq('id', user.id);
+
+        if (deleteError) {
+            console.error("Restore failed (delete):", deleteError);
+            // Non-critical, but should clean up
+        }
+
+        alert("정상적으로 복구되었습니다.");
         fetchDeletedUsers();
     };
 
@@ -88,6 +124,7 @@ export default function DeletedUsersPage() {
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">연락처</th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">탈퇴일</th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">탈퇴 사유</th>
+                                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">관리</th>
                                 </tr>
                             </thead>
                             <tbody className="bg-white divide-y divide-gray-200">
@@ -124,6 +161,14 @@ export default function DeletedUsersPage() {
                                             <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
                                                 {user.reason || "기타"}
                                             </span>
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                            <button
+                                                onClick={() => handleRestore(user)}
+                                                className="text-green-600 hover:text-green-700 bg-green-50 hover:bg-green-100 px-3 py-1.5 rounded flex items-center gap-1 text-xs transition-colors ml-auto"
+                                            >
+                                                <ArchiveRestore className="w-3 h-3" /> 복구
+                                            </button>
                                         </td>
                                     </tr>
                                 ))}

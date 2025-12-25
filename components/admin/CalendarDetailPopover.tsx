@@ -1,10 +1,10 @@
 "use client";
 
 import { ReservationDB as Reservation } from "@/lib/services/reservation";
-import { Copy, Edit2, Trash2, X, MapPin, User, FileText, Clock } from "lucide-react";
+import { Copy, Edit2, Trash2, X, MapPin, User, FileText, Clock, AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
 import { ko } from "date-fns/locale";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 interface CalendarDetailPopoverProps {
     reservation: Reservation | null;
@@ -13,11 +13,21 @@ interface CalendarDetailPopoverProps {
     onEdit: (res: Reservation) => void;
     onCopy: (res: Reservation) => void;
     onDelete: (res: Reservation) => void;
-    onApprove: (res: Reservation) => void;
+    onApprove: (res: Reservation, fee: number, paymentStatus: string) => void;
+    onUpdate?: (res: Reservation, updates: any) => void;
 }
 
-export function CalendarDetailPopover({ reservation, position, onClose, onEdit, onCopy, onDelete, onApprove }: CalendarDetailPopoverProps) {
+export function CalendarDetailPopover({ reservation, position, onClose, onEdit, onCopy, onDelete, onApprove, onUpdate }: CalendarDetailPopoverProps) {
     const popoverRef = useRef<HTMLDivElement>(null);
+    const [editFee, setEditFee] = useState(reservation?.final_fee || reservation?.total_price || 0);
+    const [editPayStatus, setEditPayStatus] = useState(reservation?.payment_status || 'unpaid');
+
+    useEffect(() => {
+        if (reservation) {
+            setEditFee(reservation.final_fee || reservation.total_price || 0);
+            setEditPayStatus(reservation.payment_status || 'unpaid');
+        }
+    }, [reservation]);
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -100,14 +110,58 @@ export function CalendarDetailPopover({ reservation, position, onClose, onEdit, 
                     )}
                 </div>
 
+                {/* Payment & Fee Management Section */}
+                <div className="mb-6 pt-4 border-t border-gray-100 space-y-3">
+                    {/* Adjustment Request Alert */}
+                    {(reservation.payment_status === 'adjustment_requested' || reservation.adjustment_reason) && (
+                        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-xs">
+                            <div className="font-bold text-yellow-800 mb-1 flex items-center gap-1">
+                                <AlertTriangle className="w-3 h-3" /> 대관비 조정 요청
+                            </div>
+                            <p className="text-yellow-700">{reservation.adjustment_reason || "사유 미기재"}</p>
+                        </div>
+                    )}
+
+                    <div className="grid grid-cols-2 gap-3">
+                        <div>
+                            <label className="block text-xs font-bold text-gray-500 mb-1">최종 대관비</label>
+                            <input
+                                type="number"
+                                className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded font-bold text-gray-900"
+                                value={editFee}
+                                onChange={(e) => setEditFee(Number(e.target.value))}
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-gray-500 mb-1">입금 상태</label>
+                            <select
+                                className={`w-full px-2 py-1.5 text-sm border border-gray-300 rounded font-bold ${editPayStatus === 'paid' ? 'text-green-600' : 'text-gray-600'}`}
+                                value={editPayStatus}
+                                onChange={(e) => setEditPayStatus(e.target.value as any)}
+                            >
+                                <option value="unpaid">미납</option>
+                                <option value="paid">납부 완료</option>
+                                <option value="adjustment_requested">조정 요청</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
                 {/* Footer Buttons */}
-                <div className="flex items-center justify-end gap-2 pt-4 border-t border-gray-100">
-                    {reservation.status === 'pending' && (
+                <div className="flex items-center justify-end gap-2 pt-2">
+                    {reservation.status === 'pending' ? (
                         <button
-                            onClick={() => onApprove(reservation)}
-                            className="mr-auto px-3 py-1 bg-green-500 hover:bg-green-600 text-white text-xs font-bold rounded-full transition-colors shadow-sm"
+                            onClick={() => onApprove(reservation, editFee, editPayStatus)}
+                            className="mr-auto px-4 py-1.5 bg-green-500 hover:bg-green-600 text-white text-sm font-bold rounded-lg transition-colors shadow-sm"
                         >
-                            승인
+                            승인 및 확정
+                        </button>
+                    ) : (
+                        <button
+                            onClick={() => onUpdate && onUpdate(reservation, { final_fee: editFee, payment_status: editPayStatus })}
+                            className="mr-auto px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold rounded-lg transition-colors shadow-sm"
+                        >
+                            저장
                         </button>
                     )}
                     <button
@@ -120,7 +174,7 @@ export function CalendarDetailPopover({ reservation, position, onClose, onEdit, 
                     <button
                         onClick={() => onEdit(reservation)}
                         className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
-                        title="수정"
+                        title="전체 수정"
                     >
                         <Edit2 className="w-4 h-4" />
                     </button>

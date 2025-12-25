@@ -23,6 +23,9 @@ export interface ReservationDB {
     total_price?: number; // Added field
     group_id?: string; // Added field
     recurrence_rule?: any; // Added field
+    final_fee?: number; // Added field
+    payment_status?: 'unpaid' | 'paid' | 'adjustment_requested'; // Added field
+    adjustment_reason?: string; // Added field
     color?: string;
     profiles?: {
         name: string;

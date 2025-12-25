@@ -85,10 +85,11 @@ export default function AdminPage() {
         return () => { supabase.removeChannel(channel); };
     }, []);
 
-    const handleStatusUpdate = async (id: string, newStatus: 'confirmed' | 'rejected') => {
+    const handleUpdateReservation = async (id: string, updates: any) => {
         try {
-            const { error } = await supabase.from('reservations').update({ status: newStatus }).eq('id', id);
+            const { error } = await supabase.from('reservations').update(updates).eq('id', id);
             if (error) throw error;
+            fetchReservations(); // Refresh
         } catch (error: any) {
             console.error(error);
             alert("처리 중 오류가 발생했습니다: " + error.message);
@@ -511,7 +512,7 @@ export default function AdminPage() {
                                                         <div className="flex justify-end gap-2 items-center">
                                                             {res.status === 'pending' && (
                                                                 <button
-                                                                    onClick={() => handleStatusUpdate(res.id, 'confirmed')}
+                                                                    onClick={() => handleUpdateReservation(res.id, { status: 'confirmed' })}
                                                                     className="text-green-600 hover:bg-green-50 bg-white border border-green-200 px-2 py-1 rounded text-xs font-bold shadow-sm"
                                                                 >
                                                                     승인
@@ -646,9 +647,16 @@ export default function AdminPage() {
                         onDelete={(res) => {
                             handleDelete({ type: 'single', data: res });
                         }}
-                        onApprove={(res) => {
+                        onApprove={(res, fee, paymentStatus) => {
                             setPopoverData(prev => ({ ...prev, isOpen: false }));
-                            handleStatusUpdate(res.id, 'confirmed');
+                            handleUpdateReservation(res.id, {
+                                status: 'confirmed',
+                                final_fee: fee,
+                                payment_status: paymentStatus
+                            });
+                        }}
+                        onUpdate={(res, updates) => {
+                            handleUpdateReservation(res.id, updates);
                         }}
                     />
                 )

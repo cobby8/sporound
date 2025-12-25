@@ -24,9 +24,38 @@ export default function UserManagementPage() {
             query = query.or(`name.ilike.%${searchQuery}%,email.ilike.%${searchQuery}%,phone.ilike.%${searchQuery}%`);
         }
 
-        const { data, error } = await query;
-        if (error) console.error(error);
-        else setUsers(data || []);
+        const { data: userData, error } = await query;
+
+        if (error) {
+            console.error(error);
+            setUsers([]);
+        } else {
+            // Fetch Active Reservations for these users
+            const userIds = userData?.map(u => u.id) || [];
+            if (userIds.length > 0) {
+                const today = new Date().toISOString().split('T')[0];
+                const { data: resData } = await supabase
+                    .from('reservations')
+                    .select('user_id, status, date, recurrence_rule')
+                    .in('user_id', userIds)
+                    .or(`status.eq.pending,date.gte.${today},recurrence_rule.not.is.null`);
+
+                // Map stats to users
+                const processedUsers = userData?.map(user => {
+                    const userRes = resData?.filter(r => r.user_id === user.id) || [];
+                    const isRegular = userRes.some(r => r.recurrence_rule);
+                    const isPending = userRes.some(r => r.status === 'pending');
+                    const isBeforeUse = userRes.some(r => r.status === 'confirmed' && r.date >= today);
+
+                    return { ...user, isRegular, isPending, isBeforeUse };
+                });
+                setUsers(processedUsers || []);
+            } else {
+                // Default if no reservations found or empty user list
+                const processedUsers = userData?.map(user => ({ ...user, isRegular: false, isPending: false, isBeforeUse: false }));
+                setUsers(processedUsers || []);
+            }
+        }
 
         setLoading(false);
     };
@@ -181,6 +210,7 @@ export default function UserManagementPage() {
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">사용자</th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">연락처</th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">가입일</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">상태</th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">권한</th>
                                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">관리</th>
                                 </tr>
@@ -213,6 +243,14 @@ export default function UserManagementPage() {
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <div className="text-sm text-gray-500">
                                                 {new Date(user.created_at).toLocaleDateString()}
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap">
+                                            <div className="flex flex-col gap-1">
+                                                {user.isRegular && <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 w-fit">정기대관</span>}
+                                                {user.isPending && <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800 w-fit">승인대기</span>}
+                                                {user.isBeforeUse && <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 w-fit">사용전</span>}
+                                                {!user.isRegular && !user.isPending && !user.isBeforeUse && <span className="text-gray-400 text-xs">-</span>}
                                             </div>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
