@@ -44,9 +44,19 @@ export default function UserManagementPage() {
         const confirmMsg = `[주의] ${user.name || user.email} 님을 강제 탈퇴시키시겠습니까?\n\n탈퇴 시 해당 회원의 모든 정보와 예약 내역이 영구적으로 삭제될 수 있습니다.`;
         if (!confirm(confirmMsg)) return;
 
-        // Note: This only deletes from 'public.profiles'. 
-        // If there is a cascading delete on 'auth.users', fine. 
-        // Otherwise, they lose profile but auth account remains (but effectively broken).
+        // 1. Delete Reservations first (to avoid FK constraints)
+        const { error: resError } = await supabase
+            .from('reservations')
+            .delete()
+            .eq('user_id', user.id);
+
+        if (resError) {
+            console.error("Error deleting reservations:", resError);
+            alert("예약 내역 삭제 중 오류가 발생했습니다: " + resError.message);
+            return;
+        }
+
+        // 2. Delete Profile
         const { error } = await supabase
             .from('profiles')
             .delete()

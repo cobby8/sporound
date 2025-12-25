@@ -31,26 +31,39 @@ export default function AdminAdminsPage() {
         fetchAdmins();
     }, []);
 
-    // Search for potential admins (users only)
-    const handleSearch = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!searchQuery.trim()) return;
-
+    // Fetch potential admins (non-admin users)
+    const fetchNonAdmins = async (query: string = "") => {
         setSearchLoading(true);
-        const { data, error } = await supabase
+        let builder = supabase
             .from('profiles')
             .select('*')
-            .or(`name.ilike.%${searchQuery}%,email.ilike.%${searchQuery}%,phone.ilike.%${searchQuery}%`)
             .neq('role', 'admin') // Exclude existing admins
-            .limit(5);
+            .order('created_at', { ascending: false })
+            .limit(20);
+
+        if (query) {
+            builder = builder.or(`name.ilike.%${query}%,email.ilike.%${query}%,phone.ilike.%${query}%`);
+        }
+
+        const { data, error } = await builder;
 
         if (error) {
             console.error(error);
-            alert("검색 중 오류가 발생했습니다.");
+            alert("회원 목록을 불러오는 중 오류가 발생했습니다.");
         } else {
             setSearchedUsers(data || []);
         }
         setSearchLoading(false);
+    };
+
+    useEffect(() => {
+        fetchAdmins();
+        fetchNonAdmins(); // Fetch default list on mount
+    }, []);
+
+    const handleSearch = (e: React.FormEvent) => {
+        e.preventDefault();
+        fetchNonAdmins(searchQuery);
     };
 
     const handleGrantAdmin = async (user: any) => {
@@ -83,6 +96,7 @@ export default function AdminAdminsPage() {
         } else {
             alert("권한이 해제되었습니다.");
             fetchAdmins();
+            fetchNonAdmins(searchQuery); // Refresh list
         }
     };
 
@@ -167,9 +181,9 @@ export default function AdminAdminsPage() {
                         </form>
 
                         <div className="space-y-2">
-                            {searchedUsers.length > 0 && (
-                                <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">검색 결과</h4>
-                            )}
+                            <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">
+                                {searchQuery ? "검색 결과" : "회원 목록"}
+                            </h4>
                             {searchedUsers.map(user => (
                                 <div key={user.id} className="p-3 border border-gray-200 rounded-lg flex items-center justify-between hover:border-purple-300 transition-colors">
                                     <div className="flex items-center gap-3">
