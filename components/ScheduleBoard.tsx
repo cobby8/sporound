@@ -172,25 +172,28 @@ export function ScheduleBoard({ schedule, startDate, onOccupiedCellClick, onRese
         setSelectedSlots(newSelection);
     };
 
-    // Lock scroll on mobile using non-passive event listener
+    // Lock scroll when dragging (Mobile/Touch specific)
+    // Pointer Events 'setPointerCapture' usually handles this, but on some touch devices, 
+    // the browser claims the gesture for scrolling first. 
+    // We add a non-passive touchmove listener to FORCE preventDefault.
     useEffect(() => {
-        const preventDefault = (e: TouchEvent) => {
+        const preventScroll = (e: TouchEvent) => {
             if (isDragging) {
                 e.preventDefault();
             }
         };
 
         if (isDragging) {
-            // Passive: false is required to allow preventDefault to work on touchmove
-            document.addEventListener("touchmove", preventDefault, { passive: false });
-            document.body.style.overflow = "hidden"; // Fallback for some browsers
+            // Passive: false is required to allow preventDefault
+            document.addEventListener('touchmove', preventScroll, { passive: false });
+            // Also lock body overflow just in case
+            document.body.style.overflow = "hidden";
         } else {
-            document.removeEventListener("touchmove", preventDefault);
             document.body.style.overflow = "";
         }
 
         return () => {
-            document.removeEventListener("touchmove", preventDefault);
+            document.removeEventListener('touchmove', preventScroll);
             document.body.style.overflow = "";
         };
     }, [isDragging]);
