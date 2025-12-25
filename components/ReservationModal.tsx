@@ -72,91 +72,88 @@ export function ReservationModal({
     const [reservationType, setReservationType] = useState<"daily" | "monthly" | "3month">("daily");
 
     // Price Calculation Logic
+    const { getPrice, loading: pricingLoading } = useDynamicPricing();
+
     useEffect(() => {
         if (!isOpen) return;
 
         const calculatePrice = () => {
-            // Helper: "HH:mm" -> minutes
+            const dateObj = new Date(selectedDay); // Note: selectedDay is 'YYYY-MM-DD' or similar? 
+            // Actually in previous code selectedDay was string '토요일' or similar?
+            // Re-checking props: selectedDate is 'YYYY-MM-DD', selectedDay is '월요일'.
+            // We need a Date object for the calculator to determine day of week.
+            const targetDate = new Date(selectedDate);
+
+            // Helper: "HH:mm" -> minutes for duration calc
             const toMinutes = (timeStr: string) => {
                 const [h, m] = timeStr.split(':').map(Number);
                 return h * 60 + m;
             };
-
             const startMinutes = toMinutes(startTime);
             const endMinutes = toMinutes(endTime);
             const durationMinutes = endMinutes - startMinutes;
-            const hours = durationMinutes / 60; // Float (e.g. 1.5)
+            const hours = durationMinutes / 60;
 
             setDuration(hours);
 
-            const isWeekend = selectedDay === '토요일' || selectedDay === '일요일';
             const isEvent = formData.peopleCount >= 50;
 
-            let unitPrice = 0;
+            let price = 0;
             let waitingRoomPrice = 0;
 
             if (isEvent) {
-                // Event Pricing (Assume Flat Rate per hour? or per event block?)
-                // Usually event pricing is per hour block.
+                // Event Pricing (Legacy Logic maintained for large events for now, or move to DB later)
+                // Assuming events are still custom/flat rate as per original code
+                if (formData.peopleCount >= 200) price = 400000 * hours; // Assuming original was flat? 
+                // Original logic: "if (formData.peopleCount >= 200) unitPrice = 400000;" -> unit price per hour?
+                // Or flat? The original code did "let price = unitPrice * hours".
+                // So yes, unitPrice was per-hour.
+                let unitPrice = 0;
                 if (formData.peopleCount >= 200) unitPrice = 400000;
                 else if (formData.peopleCount >= 150) unitPrice = 300000;
                 else if (formData.peopleCount >= 100) unitPrice = 250000;
                 else unitPrice = selectedCourt === 'pink' ? 110000 : 90000;
-
-                waitingRoomPrice = 0;
+                price = unitPrice * hours;
             } else {
-                // Standard Pricing
-                if (reservationType === 'daily') {
-                    waitingRoomPrice = 20000;
-                    let basePrice = selectedCourt === 'pink' ? 85000 : 75000;
+                // Dynamic Rule Calculation
+                const { total } = getPrice(targetDate, startTime, endTime, selectedCourt as 'pink' | 'mint');
+                price = total;
 
-                    // Discount Logic for Daily (Based on Start Time)
-                    let isDiscount = false;
-                    const startHour = Math.floor(startMinutes / 60);
-
-                    if (isWeekend) {
-                        if (startHour < 8 || startHour >= 21) isDiscount = true;
-                    } else {
-                        if (startHour < 9 || startHour >= 22) isDiscount = true;
-                    }
-
-                    if (isDiscount) {
-                        unitPrice = selectedCourt === 'pink' ? 60000 : 50000;
-                    } else {
-                        unitPrice = basePrice;
-                    }
-
-                } else if (reservationType === 'monthly') {
-                    // Monthly
+                // Waiting Room Logic
+                waitingRoomPrice = 20000;
+                // Monthly/3-Month discounts for waiting room
+                if (reservationType === 'monthly' || reservationType === '3month') {
                     waitingRoomPrice = 10000;
-                    unitPrice = selectedCourt === 'pink' ? 75000 : 65000;
-                } else {
-                    // 3-Month
-                    waitingRoomPrice = 10000;
-                    unitPrice = selectedCourt === 'pink' ? 70000 : 60000;
+                }
+
+                // Long-term Contract Discounts (Applied to the Rule Price)
+                if (reservationType === 'monthly') {
+                    // 10% discount on the calculated price
+                    price = price * 0.9;
+                } else if (reservationType === '3month') {
+                    // 20% discount on the calculated price
+                    price = price * 0.8;
                 }
             }
 
-            let price = unitPrice * hours;
-
-            // Waiting Room Logic
+            // Waiting Room Cost Addition
             if (formData.useWaitingRoom) {
-                if (isEvent) {
-                    // Included
-                } else {
-                    if (hours >= 4) {
-                        // Free
+                if (!isEvent) { // Event includes it? Original logic: "if (isEvent) { // Included }"
+                    if (hours >= 4 || reservationType === '3month') {
+                        // Free for >4h or 3-month contract (Updated Policy)
                     } else {
                         price += waitingRoomPrice;
                     }
                 }
             }
 
-            setTotalPrice(Math.floor(price / 100) * 100); // Round down to 100 won
+            setTotalPrice(Math.floor(price / 100) * 100);
         };
 
-        calculatePrice();
-    }, [isOpen, startTime, endTime, selectedDay, selectedCourt, formData.peopleCount, formData.useWaitingRoom, reservationType]);
+        if (!pricingLoading) {
+            calculatePrice();
+        }
+    }, [isOpen, startTime, endTime, selectedDate, selectedCourt, formData.peopleCount, formData.useWaitingRoom, reservationType, pricingLoading, getPrice]);
 
     const copyAccount = () => {
         navigator.clipboard.writeText("394-910573-99907");
