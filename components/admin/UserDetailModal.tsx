@@ -52,140 +52,149 @@ export function UserDetailModal({ isOpen, onClose, user }: UserDetailModalProps)
     };
 
     return (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
-            <div
-                className="bg-white rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in-95"
-                onClick={e => e.stopPropagation()}
-            >
-                {/* Header */}
-                <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-                    <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                        <User className="w-5 h-5 text-gray-500" />
-                        회원 상세 정보
-                    </h3>
-                    <button onClick={onClose} className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-200 transition-colors">
-                        <X className="w-5 h-5" />
-                    </button>
-                </div>
-
-                <div className="p-6 overflow-y-auto max-h-[80vh]">
-                    {/* User Profile Info */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                        <div className="space-y-4">
-                            <div>
-                                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1">이름</label>
-                                <div className="text-lg font-medium text-gray-900">{user.name || "미등록"}</div>
-                            </div>
-                            <div>
-                                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1">이메일</label>
-                                <div className="text-base text-gray-700 flex items-center gap-2">
-                                    <Mail className="w-4 h-4 text-gray-400" />
-                                    {user.email}
-                                </div>
-                            </div>
-                        </div>
-                        <div className="space-y-4">
-                            <div>
-                                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1">연락처</label>
-                                <div className="text-base text-gray-700 flex items-center gap-2">
-                                    <Phone className="w-4 h-4 text-gray-400" />
-                                    {user.phone || "-"}
-                                </div>
-                            </div>
-                            <div>
-                                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1">가입일</label>
-                                <div className="text-base text-gray-700 flex items-center gap-2">
-                                    <Calendar className="w-4 h-4 text-gray-400" />
-                                    {new Date(user.created_at).toLocaleDateString()}
-                                </div>
-                            </div>
-                        </div>
+        <>
+            <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
+                <div
+                    className="bg-white rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in-95 flex flex-col max-h-[90vh]"
+                    onClick={e => e.stopPropagation()}
+                >
+                    {/* Header */}
+                    <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50 flex-shrink-0">
+                        <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                            <User className="w-5 h-5 text-gray-500" />
+                            회원 상세 정보
+                        </h3>
+                        <button onClick={onClose} className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-200 transition-colors">
+                            <X className="w-5 h-5" />
+                        </button>
                     </div>
 
-                    <div className="border-t border-gray-100 my-6"></div>
-
-                    {/* Reservation History */}
-                    <h4 className="text-base font-bold text-gray-900 mb-4 flex items-center gap-2">
-                        <Clock className="w-4 h-4 text-gray-500" />
-                        최근 예약 내역
-                    </h4>
-
-                    {loading ? (
-                        <div className="text-center py-10 text-gray-500">불러오는 중...</div>
-                    ) : reservations.length === 0 ? (
-                        <div className="text-center py-10 bg-gray-50 rounded-lg text-gray-500 text-sm">
-                            예약 내역이 없습니다.
+                    <div className="p-6 overflow-y-auto flex-1">
+                        {/* User Profile Info */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1">이름</label>
+                                    <div className="text-lg font-medium text-gray-900">{user.name || "미등록"}</div>
+                                </div>
+                                <div>
+                                    <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1">이메일</label>
+                                    <div className="text-base text-gray-700 flex items-center gap-2">
+                                        <Mail className="w-4 h-4 text-gray-400" />
+                                        {user.email}
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1">연락처</label>
+                                    <div className="text-base text-gray-700 flex items-center gap-2">
+                                        <Phone className="w-4 h-4 text-gray-400" />
+                                        {user.phone || "-"}
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1">가입일</label>
+                                    <div className="text-base text-gray-700 flex items-center gap-2">
+                                        <Calendar className="w-4 h-4 text-gray-400" />
+                                        {new Date(user.created_at).toLocaleDateString()}
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                    ) : (
-                        <div className="overflow-x-auto border border-gray-200 rounded-lg">
-                            <table className="min-w-full divide-y divide-gray-200">
-                                <thead className="bg-gray-50">
-                                    <tr>
-                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">날짜</th>
-                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">시간</th>
-                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">코트</th>
-                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">상태</th>
-                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">결제</th>
-                                        <th className="px-4 py-2 text-right text-xs font-medium text-gray-500">관리</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="bg-white divide-y divide-gray-200">
-                                    {reservations.map((res) => (
-                                        <tr key={res.id} className="hover:bg-gray-50">
-                                            <td className="px-4 py-2 text-sm text-gray-900">
-                                                {format(new Date(res.date), 'yyyy-MM-dd (eee)', { locale: ko })}
-                                            </td>
-                                            <td className="px-4 py-2 text-sm text-gray-600">
-                                                {res.start_time.slice(0, 5)} - {res.end_time.slice(0, 5)}
-                                            </td>
-                                            <td className="px-4 py-2 text-sm text-gray-600">
-                                                {res.courts?.name}
-                                            </td>
-                                            <td className="px-4 py-2">
-                                                {getStatusBadge(res.status)}
-                                            </td>
-                                            <td className="px-4 py-2 text-sm">
-                                                <div className="font-bold">{res.final_fee ? `₩${res.final_fee.toLocaleString()}` : (res.total_price ? `₩${res.total_price.toLocaleString()}` : '-')}</div>
-                                                <div className={`text-xs font-bold ${res.payment_status === 'paid' ? 'text-green-600' : res.payment_status === 'adjustment_requested' ? 'text-yellow-600' : 'text-red-500'}`}>
-                                                    {res.payment_status === 'paid' ? '완료' : res.payment_status === 'adjustment_requested' ? '조정요청' : '미납'}
-                                                </div>
-                                            </td>
-                                            <td className="px-4 py-2 text-right">
-                                                <div className="flex justify-end gap-1">
-                                                    <button
-                                                        onClick={() => setSelectedReservation(res)}
-                                                        className="text-blue-500 hover:text-blue-700 bg-blue-50 p-1.5 rounded transition-colors"
-                                                        title="예약 수정"
-                                                    >
-                                                        <Edit2 className="w-4 h-4" />
-                                                    </button>
-                                                    <button
-                                                        onClick={async () => {
-                                                            if (!confirm("정말 이 예약을 삭제하시겠습니까?")) return;
-                                                            const { error } = await supabase.from('reservations').delete().eq('id', res.id);
-                                                            if (error) alert("삭제 실패: " + error.message);
-                                                            else {
-                                                                alert("삭제되었습니다.");
-                                                                fetchUserReservations();
-                                                            }
-                                                        }}
-                                                        className="text-red-500 hover:text-red-700 bg-red-50 p-1.5 rounded transition-colors"
-                                                        title="예약 삭제"
-                                                    >
-                                                        <XCircle className="w-4 h-4" />
-                                                    </button>
-                                                </div>
-                                            </td>
+
+                        <div className="border-t border-gray-100 my-6"></div>
+
+                        {/* Reservation History */}
+                        <h4 className="text-base font-bold text-gray-900 mb-4 flex items-center gap-2">
+                            <Clock className="w-4 h-4 text-gray-500" />
+                            최근 예약 내역
+                        </h4>
+
+                        {loading ? (
+                            <div className="text-center py-10 text-gray-500">불러오는 중...</div>
+                        ) : reservations.length === 0 ? (
+                            <div className="text-center py-10 bg-gray-50 rounded-lg text-gray-500 text-sm">
+                                예약 내역이 없습니다.
+                            </div>
+                        ) : (
+                            <div className="overflow-x-auto border border-gray-200 rounded-lg">
+                                <table className="min-w-full divide-y divide-gray-200">
+                                    <thead className="bg-gray-50">
+                                        <tr>
+                                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 whitespace-nowrap">날짜/시간</th>
+                                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 whitespace-nowrap">코트</th>
+                                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 whitespace-nowrap">상태</th>
+                                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 whitespace-nowrap">결제</th>
+                                            <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 whitespace-nowrap">관리</th>
                                         </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    )}
+                                    </thead>
+                                    <tbody className="bg-white divide-y divide-gray-200">
+                                        {reservations.map((res) => (
+                                            <tr key={res.id} className="hover:bg-gray-50">
+                                                <td className="px-4 py-2 text-sm text-gray-900 whitespace-nowrap">
+                                                    <div>{format(new Date(res.date), 'MM-dd (eee)', { locale: ko })}</div>
+                                                    <div className="text-xs text-gray-500">{res.start_time.slice(0, 5)} - {res.end_time.slice(0, 5)}</div>
+                                                </td>
+                                                <td className="px-4 py-2 text-sm text-gray-600 whitespace-nowrap">
+                                                    {res.courts?.name}
+                                                </td>
+                                                <td className="px-4 py-2 whitespace-nowrap">
+                                                    {getStatusBadge(res.status)}
+                                                </td>
+                                                <td className="px-4 py-2 text-sm whitespace-nowrap">
+                                                    <div className="font-bold">
+                                                        {res.final_fee ? (
+                                                            <span className="text-pink-600">₩{res.final_fee.toLocaleString()}</span>
+                                                        ) : (
+                                                            res.total_price ? `₩${res.total_price.toLocaleString()}` : '-'
+                                                        )}
+                                                    </div>
+                                                    <div className={`text-xs font-bold ${res.payment_status === 'paid' ? 'text-green-600' : res.payment_status === 'adjustment_requested' ? 'text-yellow-600' : 'text-red-500'}`}>
+                                                        {res.payment_status === 'paid' ? '완료' : res.payment_status === 'adjustment_requested' ? '조정요청' : '미납'}
+                                                    </div>
+                                                </td>
+                                                <td className="px-4 py-2 text-right whitespace-nowrap">
+                                                    <div className="flex justify-end gap-1">
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation(); // Just in case
+                                                                setSelectedReservation(res);
+                                                            }}
+                                                            className="text-blue-500 hover:text-blue-700 bg-blue-50 p-1.5 rounded transition-colors"
+                                                            title="예약 수정"
+                                                        >
+                                                            <Edit2 className="w-4 h-4" />
+                                                        </button>
+                                                        <button
+                                                            onClick={async (e) => {
+                                                                e.stopPropagation();
+                                                                if (!confirm("정말 이 예약을 삭제하시겠습니까?")) return;
+                                                                const { error } = await supabase.from('reservations').delete().eq('id', res.id);
+                                                                if (error) alert("삭제 실패: " + error.message);
+                                                                else {
+                                                                    alert("삭제되었습니다.");
+                                                                    fetchUserReservations();
+                                                                }
+                                                            }}
+                                                            className="text-red-500 hover:text-red-700 bg-red-50 p-1.5 rounded transition-colors"
+                                                            title="예약 삭제"
+                                                        >
+                                                            <XCircle className="w-4 h-4" />
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
 
-            {/* Edit Modal */}
+            {/* Edit Modal - Rendered outside the backdrop container */}
             <AdminReservationEditModal
                 reservation={selectedReservation}
                 isOpen={!!selectedReservation}
@@ -195,6 +204,6 @@ export function UserDetailModal({ isOpen, onClose, user }: UserDetailModalProps)
                     setSelectedReservation(null);
                 }}
             />
-        </div>
+        </>
     );
 }

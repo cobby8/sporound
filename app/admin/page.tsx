@@ -541,7 +541,13 @@ export default function AdminPage() {
                                                     </td>
                                                     <td className="px-6 py-4 text-sm text-gray-500 max-w-xs">
                                                         <div className="truncate" title={res.purpose || ""}>{res.purpose}</div>
-                                                        <div className="font-medium text-gray-900">{res.total_price ? `₩${res.total_price.toLocaleString()}` : '-'}</div>
+                                                        <div className="font-medium text-gray-900">
+                                                            {res.final_fee ? (
+                                                                <span className="text-pink-600 font-bold">₩{res.final_fee.toLocaleString()}</span>
+                                                            ) : (
+                                                                res.total_price ? `₩${res.total_price.toLocaleString()}` : '-'
+                                                            )}
+                                                        </div>
                                                     </td>
                                                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                                         <div className="flex justify-end gap-2 items-center">

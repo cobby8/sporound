@@ -82,136 +82,144 @@ export function AdminReservationEditModal({ isOpen, onClose, reservation, onUpda
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 font-['Pretendard']">
-            <div className="bg-white rounded-lg shadow-xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
-                <div className="flex justify-between items-center mb-6">
-                    <h2 className="text-xl font-bold text-gray-900">예약 정보 수정</h2>
-                    <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
-                        <X className="w-6 h-6" />
-                    </button>
-                </div>
+        <div className="fixed inset-0 z-[60] overflow-y-auto">
+            <div className="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
+                <div className="fixed inset-0 bg-black/50 transition-opacity" onClick={onClose} />
 
-                <div className="space-y-4">
-                    {/* Basic Info (Read Only for now or editable if needed) */}
-                    {/* Basic Info */}
-                    <div className="space-y-3">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">단체명 (팀명)</label>
-                            <input
-                                type="text"
-                                value={teamName}
-                                onChange={(e) => setTeamName(e.target.value)}
-                                className="w-full border border-gray-300 rounded-md p-2 text-gray-900 font-bold"
-                                placeholder="팀명 또는 단체명을 입력하세요"
-                            />
+                <div className="relative transform overflow-hidden rounded-lg bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg">
+                    <div className="bg-white px-4 pb-4 pt-5 sm:p-6 sm:pb-4 max-h-[85vh] overflow-y-auto">
+                        <div className="flex justify-between items-center mb-6">
+                            <h2 className="text-xl font-bold text-gray-900">예약 정보 수정</h2>
+                            <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+                                <X className="w-6 h-6" />
+                            </button>
                         </div>
 
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">예약자 정보 (수정불가)</label>
-                            <div className="text-gray-900 font-medium p-2 bg-gray-50 rounded flex justify-between items-center text-sm">
-                                <span>{reservation.profiles?.name || reservation.guest_name || "이름 없음"}</span>
-                                <span className="text-gray-500">
-                                    {reservation.profiles?.phone || reservation.guest_phone || "연락처 없음"}
-                                </span>
+                        <div className="space-y-4">
+                            {/* ... Content ... */}
+                            {/* Basic Info */}
+                            <div className="space-y-3">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">단체명 (팀명)</label>
+                                    <input
+                                        type="text"
+                                        value={teamName}
+                                        onChange={(e) => setTeamName(e.target.value)}
+                                        className="w-full border border-gray-300 rounded-md p-2 text-gray-900 font-bold"
+                                        placeholder="팀명 또는 단체명을 입력하세요"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">예약자 정보 (수정불가)</label>
+                                    <div className="text-gray-900 font-medium p-2 bg-gray-50 rounded flex justify-between items-center text-sm">
+                                        <span>{reservation.profiles?.name || reservation.guest_name || "이름 없음"}</span>
+                                        <span className="text-gray-500">
+                                            {reservation.profiles?.phone || reservation.guest_phone || "연락처 없음"}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Status & Payment Status */}
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">예약 상태</label>
+                                    <select
+                                        value={status}
+                                        onChange={(e) => setStatus(e.target.value as any)}
+                                        className="w-full border border-gray-300 rounded-md p-2 text-sm font-bold text-gray-900 focus:ring-pink-500 focus:border-pink-500"
+                                    >
+                                        <option value="pending">승인 대기</option>
+                                        <option value="confirmed">예약 확정</option>
+                                        <option value="canceled">취소됨</option>
+                                        <option value="rejected">거절됨</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">결제 상태</label>
+                                    <select
+                                        value={paymentStatus}
+                                        onChange={(e) => setPaymentStatus(e.target.value as any)}
+                                        className={`w-full border border-gray-300 rounded-md p-2 text-sm font-bold focus:ring-pink-500 focus:border-pink-500 ${paymentStatus === 'paid' ? 'text-green-600' : 'text-gray-900'
+                                            }`}
+                                    >
+                                        <option value="unpaid">미납</option>
+                                        <option value="adjustment_requested">조정 요청</option>
+                                        <option value="paid">납부 완료</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            {/* Fee Adjustment */}
+                            <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                                <label className="block text-sm font-medium text-gray-700 mb-1">최종 대관비 (원)</label>
+                                <input
+                                    type="number"
+                                    value={finalFee}
+                                    onChange={(e) => setFinalFee(Number(e.target.value))}
+                                    className="w-full border border-gray-300 rounded-md p-2 text-gray-900 font-bold text-right"
+                                />
+                                {reservation.adjustment_reason && (
+                                    <div className="mt-2 text-xs text-red-600 flex items-start gap-1">
+                                        <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                                        <span>요청 사유: {reservation.adjustment_reason}</span>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Time Editing */}
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">시작 시간</label>
+                                    <input
+                                        type="time"
+                                        value={startTime}
+                                        onChange={(e) => setStartTime(e.target.value)}
+                                        className="w-full border border-gray-300 rounded-md p-2 text-gray-900"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">종료 시간</label>
+                                    <input
+                                        type="time"
+                                        value={endTime}
+                                        onChange={(e) => setEndTime(e.target.value)}
+                                        className="w-full border border-gray-300 rounded-md p-2 text-gray-900"
+                                    />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">날짜</label>
+                                <input
+                                    type="date"
+                                    value={date}
+                                    onChange={(e) => setDate(e.target.value)}
+                                    className="w-full border border-gray-300 rounded-md p-2 text-gray-900"
+                                />
                             </div>
                         </div>
                     </div>
 
-                    {/* Status & Payment Status */}
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">예약 상태</label>
-                            <select
-                                value={status}
-                                onChange={(e) => setStatus(e.target.value as any)}
-                                className="w-full border border-gray-300 rounded-md p-2 text-sm font-bold text-gray-900 focus:ring-pink-500 focus:border-pink-500"
-                            >
-                                <option value="pending">승인 대기</option>
-                                <option value="confirmed">예약 확정</option>
-                                <option value="canceled">취소됨</option>
-                                <option value="rejected">거절됨</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">결제 상태</label>
-                            <select
-                                value={paymentStatus}
-                                onChange={(e) => setPaymentStatus(e.target.value as any)}
-                                className={`w-full border border-gray-300 rounded-md p-2 text-sm font-bold focus:ring-pink-500 focus:border-pink-500 ${paymentStatus === 'paid' ? 'text-green-600' : 'text-gray-900'
-                                    }`}
-                            >
-                                <option value="unpaid">미납</option>
-                                <option value="adjustment_requested">조정 요청</option>
-                                <option value="paid">납부 완료</option>
-                            </select>
-                        </div>
+                    <div className="bg-gray-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6">
+                        <button
+                            type="button"
+                            onClick={handleSave}
+                            disabled={loading}
+                            className="inline-flex w-full justify-center rounded-md bg-gray-900 px-3 py-2 text-sm font-bold text-white shadow-sm hover:bg-gray-800 sm:ml-3 sm:w-auto flex items-center gap-2"
+                        >
+                            <Save className="w-4 h-4" />
+                            저장
+                        </button>
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            className="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-medium text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto"
+                            disabled={loading}
+                        >
+                            취소
+                        </button>
                     </div>
-
-                    {/* Fee Adjustment */}
-                    <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">최종 대관비 (원)</label>
-                        <input
-                            type="number"
-                            value={finalFee}
-                            onChange={(e) => setFinalFee(Number(e.target.value))}
-                            className="w-full border border-gray-300 rounded-md p-2 text-gray-900 font-bold text-right"
-                        />
-                        {reservation.adjustment_reason && (
-                            <div className="mt-2 text-xs text-red-600 flex items-start gap-1">
-                                <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                                <span>요청 사유: {reservation.adjustment_reason}</span>
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Time Editing */}
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">시작 시간</label>
-                            <input
-                                type="time"
-                                value={startTime}
-                                onChange={(e) => setStartTime(e.target.value)}
-                                className="w-full border border-gray-300 rounded-md p-2 text-gray-900"
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">종료 시간</label>
-                            <input
-                                type="time"
-                                value={endTime}
-                                onChange={(e) => setEndTime(e.target.value)}
-                                className="w-full border border-gray-300 rounded-md p-2 text-gray-900"
-                            />
-                        </div>
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">날짜</label>
-                        <input
-                            type="date"
-                            value={date}
-                            onChange={(e) => setDate(e.target.value)}
-                            className="w-full border border-gray-300 rounded-md p-2 text-gray-900"
-                        />
-                    </div>
-                </div>
-
-                <div className="mt-8 flex justify-end gap-2">
-                    <button
-                        onClick={onClose}
-                        className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 from-gray-100"
-                        disabled={loading}
-                    >
-                        취소
-                    </button>
-                    <button
-                        onClick={handleSave}
-                        disabled={loading}
-                        className="px-4 py-2 text-sm font-bold text-white bg-gray-900 rounded-md hover:bg-gray-800 flex items-center gap-2"
-                    >
-                        <Save className="w-4 h-4" />
-                        저장
-                    </button>
                 </div>
             </div>
         </div>
