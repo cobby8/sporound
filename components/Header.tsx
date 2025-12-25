@@ -69,7 +69,7 @@ export function Header() {
             <header className="sticky top-0 z-40 w-full bg-white/80 backdrop-blur-md border-b border-gray-100">
                 <div className="container mx-auto px-4 h-16 flex items-center justify-between">
                     <Link href="/" className="font-extrabold text-xl tracking-tight">
-                        <span className="text-pink-600">SPO</span>ROUND
+                        <span className="text-pink-600">SPO</span><span className="text-gray-900">ROUND</span>
                     </Link>
 
                     <div className="flex items-center gap-6">

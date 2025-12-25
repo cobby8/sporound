@@ -128,7 +128,7 @@ export default function MyPage() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
                             <label className="block text-sm font-medium text-gray-500">이름</label>
-                            <div className="mt-1 text-lg font-semibold">{profile?.name || '정보 없음'}</div>
+                            <div className="mt-1 text-lg font-semibold text-gray-900">{profile?.name || '정보 없음'}</div>
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-500">이메일</label>

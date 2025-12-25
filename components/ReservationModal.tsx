@@ -51,10 +51,16 @@ export function ReservationModal({
         setUser(data.user);
 
         if (data.user) {
+            const { data: profile } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', data.user.id)
+                .single();
+
             setFormData(prev => ({
                 ...prev,
-                name: data.user?.user_metadata?.full_name || "",
-                // If phone is available in metadata, set it here too
+                name: profile?.name || data.user?.user_metadata?.full_name || "",
+                contact: profile?.phone || data.user?.user_metadata?.phone || "",
             }));
         }
         setLoading(false);

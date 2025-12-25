@@ -286,7 +286,7 @@ export function ScheduleBoard({ schedule, startDate, onOccupiedCellClick, onRese
 
                     {/* Time Header (Corner) */}
                     <div
-                        className="bg-gray-50 p-2 text-center font-bold text-xs md:text-sm border-r border-b border-gray-200 flex items-center justify-center sticky z-20 h-[60px]"
+                        className="bg-gray-50 p-2 text-center font-bold text-xs md:text-sm border-r border-b border-gray-200 flex items-center justify-center sticky z-20 h-[60px] text-gray-900"
                         style={{ top: `${headerOffset}px` }}
                     >
                         시간
@@ -305,8 +305,8 @@ export function ScheduleBoard({ schedule, startDate, onOccupiedCellClick, onRese
                             )}
                             style={{ top: `${headerOffset}px` }}
                         >
-                            <span>{day.label}</span>
-                            <span className="text-xs text-gray-500 font-normal mt-1">
+                            <span className="text-gray-900">{day.label}</span>
+                            <span className="text-xs text-gray-900 font-normal mt-1">
                                 {formatDateShort(getDayDate(dIdx))}
                             </span>
                         </div>
@@ -468,7 +468,7 @@ export function ScheduleBoard({ schedule, startDate, onOccupiedCellClick, onRese
             />
 
             {/* Floating Reservation Button */}
-            {selectedSlots.length > 0 && (
+            {selectedSlots.length > 0 && !modalState.isOpen && (
                 <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50 animate-in fade-in slide-in-from-bottom-4">
                     <button
                         onClick={handleReserveClick}
