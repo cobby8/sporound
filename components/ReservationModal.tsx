@@ -238,7 +238,6 @@ export function ReservationModal({
     const courtName = selectedCourt === "pink" ? "핑크 코트" : "민트 코트";
 
     // Generate time options for dropdown
-    // Generate time options for dropdown
     const generateTimeOptions = () => {
         const times = [];
         for (let i = 6; i < 24; i++) {
