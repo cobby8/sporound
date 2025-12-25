@@ -1,10 +1,15 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X } from "lucide-react";
+import { X, ChevronDown, Calendar, CheckCircle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/lib/supabase";
 import { formatPhoneNumber } from "@/lib/utils/format";
+import { useDynamicPricing } from "@/hooks/useDynamicPricing";
+import { ModernModalWrapper } from "@/components/ui/ModernModalWrapper";
+import { PackageCard } from "@/components/reservation/PackageCard";
+import { Package } from "@/utils/pricingCalculator";
+import { cn } from "@/lib/utils";
 
 interface ReservationModalProps {
     isOpen: boolean;
@@ -72,7 +77,29 @@ export function ReservationModal({
     const [reservationType, setReservationType] = useState<"daily" | "monthly" | "3month">("daily");
 
     // Price Calculation Logic
-    const { getPrice, loading: pricingLoading } = useDynamicPricing();
+    // Price Calculation Logic
+    const { getPrice, packages, loading: pricingLoading } = useDynamicPricing();
+    const [selectedPackage, setSelectedPackage] = useState<Package | null>(null);
+
+    // Package Selection Handler
+    const handlePackageSelect = (pkg: Package) => {
+        if (selectedPackage?.id === pkg.id) {
+            setSelectedPackage(null);
+            // Optional: Reset time to default?
+        } else {
+            setSelectedPackage(pkg);
+            // Set time from package
+            setStartTime(pkg.start_time.slice(0, 5));
+            setEndTime(pkg.end_time.slice(0, 5));
+        }
+    };
+
+    // Override price when package is selected
+    useEffect(() => {
+        if (selectedPackage) {
+            setTotalPrice(selectedPackage.total_price);
+        }
+    }, [selectedPackage, startTime, endTime]);
 
     useEffect(() => {
         if (!isOpen) return;
@@ -450,6 +477,161 @@ export function ReservationModal({
                     </motion.div>
                 </>
             )}
-        </AnimatePresence>
-    );
-}
+    // Generate time options for dropdown
+    const generateTimeOptions = () => {
+        const times = [];
+            for (let i = 6; i < 24; i++) {
+            const h = i.toString().padStart(2, '0');
+            times.push(`${h}:00`);
+            times.push(`${h}:30`);
+        }
+            // Add late night times if needed (00:00~02:00)
+            times.push("00:00", "00:30", "01:00", "01:30", "02:00");
+            return times;
+    };
+
+            if (!isOpen) return null;
+
+            return (
+            <ModernModalWrapper isOpen={isOpen} onClose={onClose} title="코트 예약">
+                {user ? (
+                    <div className="p-6 space-y-6">
+                        {/* 1. Package Selection Strategy */}
+                        <div>
+                            <div className="flex items-center justify-between mb-3">
+                                <h3 className="text-white font-bold text-lg">패키지 선택</h3>
+                                <span className="text-xs text-pink-400 font-medium">최대 58% 할인</span>
+                            </div>
+                            <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide -mx-2 px-2">
+                                {packages.map(pkg => (
+                                    <PackageCard
+                                        key={pkg.id}
+                                        pkg={pkg}
+                                        isSelected={selectedPackage?.id === pkg.id}
+                                        onSelect={handlePackageSelect}
+                                    />
+                                ))}
+                                {packages.length === 0 && (
+                                    <div className="text-gray-500 text-sm py-4 w-full text-center bg-white/5 rounded-xl">진행 중인 패키지 프로모션이 없습니다.</div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* 2. Date & Time */}
+                        <div className="space-y-4">
+                            <div className="flex items-center justify-between">
+                                <h3 className="text-white font-bold text-lg">일시 선택</h3>
+                                <div className="flex items-center gap-2 text-sm text-gray-400">
+                                    <Calendar className="w-4 h-4" />
+                                    <span>{selectedDate} ({selectedDay})</span>
+                                </div>
+                            </div>
+
+                            {/* Time Picker */}
+                            <div className={`grid grid-cols-2 gap-3 transition-opacity duration-300 ${selectedPackage ? 'opacity-50 pointer-events-none grayscale' : ''}`}>
+                                {/* Start Time */}
+                                <div className="relative">
+                                    <select
+                                        value={startTime}
+                                        onChange={(e) => setStartTime(e.target.value)}
+                                        className="w-full bg-[#2a2a2a] text-white border border-white/10 rounded-xl px-4 py-3 appearance-none focus:border-pink-500 focus:outline-none transition-colors"
+                                    >
+                                        {generateTimeOptions().map(time => (
+                                            <option key={`start-${time}`} value={time}>{time}</option>
+                                        ))}
+                                    </select>
+                                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
+                                </div>
+
+                                {/* End Time */}
+                                <div className="relative">
+                                    <select
+                                        value={endTime}
+                                        onChange={(e) => setEndTime(e.target.value)}
+                                        className="w-full bg-[#2a2a2a] text-white border border-white/10 rounded-xl px-4 py-3 appearance-none focus:border-pink-500 focus:outline-none transition-colors"
+                                    >
+                                        {generateTimeOptions().map(time => (
+                                            <option key={`end-${time}`} value={time}>{time}</option>
+                                        ))}
+                                    </select>
+                                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
+                                </div>
+                            </div>
+                            {selectedPackage && <div className="text-xs text-center text-pink-400 mt-1">* 패키지 선택 시 시간은 자동 고정됩니다.</div>}
+                        </div>
+
+                        {/* 3. User Info & Options */}
+                        <form onSubmit={handleSubmit} className="space-y-4">
+                            {/* Simple Fields */}
+                            <div className="grid grid-cols-2 gap-3">
+                                <input
+                                    type="text"
+                                    placeholder="신청자명"
+                                    required
+                                    value={formData.name}
+                                    onChange={e => setFormData({ ...formData, name: e.target.value })}
+                                    className="bg-[#2a2a2a] border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-gray-600 focus:border-pink-500 focus:outline-none"
+                                />
+                                <input
+                                    type="tel"
+                                    placeholder="연락처"
+                                    required
+                                    value={formData.contact}
+                                    onChange={e => setFormData({ ...formData, contact: formatPhoneNumber(e.target.value) })}
+                                    className="bg-[#2a2a2a] border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-gray-600 focus:border-pink-500 focus:outline-none"
+                                />
+                            </div>
+
+                            {/* Team Name */}
+                            <input
+                                type="text"
+                                placeholder="팀명 (선택사항)"
+                                value={formData.teamName}
+                                onChange={e => setFormData({ ...formData, teamName: e.target.value })}
+                                className="w-full bg-[#2a2a2a] border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-gray-600 focus:border-pink-500 focus:outline-none"
+                            />
+
+                            {/* Waiting Room Checkbox */}
+                            <div
+                                className={`flex items-center gap-3 p-4 rounded-xl border border-white/5 transition-colors cursor-pointer ${formData.useWaitingRoom ? 'bg-pink-500/10 border-pink-500/30' : 'bg-[#2a2a2a]'}`}
+                                onClick={() => setFormData({ ...formData, useWaitingRoom: !formData.useWaitingRoom })}
+                            >
+                                <div className={`w-5 h-5 rounded border flex items-center justify-center ${formData.useWaitingRoom ? 'bg-pink-500 border-pink-500' : 'border-gray-500'}`}>
+                                    {formData.useWaitingRoom && <CheckCircle className="w-3.5 h-3.5 text-white" />}
+                                </div>
+                                <span className="text-gray-300 text-sm select-none">
+                                    대기실 사용 {duration >= 4 ? <span className="text-pink-400 font-bold">(무료)</span> : <span className="text-gray-500">(+20,000원)</span>}
+                                </span>
+                            </div>
+
+                            {/* Bottom Total & Action */}
+                            <div className="pt-4 border-t border-white/10 mt-6">
+                                <div className="flex items-center justify-between mb-4">
+                                    <span className="text-gray-400">총 결제 금액</span>
+                                    <span className="text-2xl font-bold text-white tracking-tight">
+                                        {totalPrice.toLocaleString()}원
+                                    </span>
+                                </div>
+
+                                <button
+                                    type="submit"
+                                    className="w-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-400 hover:to-purple-500 text-white font-bold py-4 rounded-2xl shadow-lg shadow-pink-500/20 active:scale-[0.98] transition-all"
+                                >
+                                    예약하기
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                ) : (
+                    <div className="p-8 text-center text-gray-400 min-h-[200px] flex flex-col items-center justify-center">
+                        <p className="mb-4">로그인이 필요한 서비스입니다.</p>
+                        <button
+                            onClick={onClose}
+                            className="px-6 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg font-bold transition-colors"
+                        >
+                            닫기
+                        </button>
+                    </div>
+                )}
+            </ModernModalWrapper>
+            );
