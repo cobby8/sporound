@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { User } from "@supabase/supabase-js";
 import { Phone, FileText, Loader2 } from "lucide-react";
+import { formatPhoneNumber } from "@/lib/utils/format";
 
 export function SignupCompletionModal() {
     const [isOpen, setIsOpen] = useState(false);
@@ -114,7 +115,7 @@ export function SignupCompletionModal() {
                                     type="tel"
                                     required
                                     value={form.phone}
-                                    onChange={e => setForm({ ...form, phone: e.target.value })}
+                                    onChange={e => setForm({ ...form, phone: formatPhoneNumber(e.target.value) })}
                                     className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 text-gray-900 placeholder:text-gray-500"
                                     placeholder="010-0000-0000"
                                 />

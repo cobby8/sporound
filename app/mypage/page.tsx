@@ -13,6 +13,7 @@ type Profile = {
     name: string;
     phone: string;
     role: string;
+    signup_purpose?: string;
 };
 
 export default function MyPage() {
@@ -36,7 +37,17 @@ export default function MyPage() {
                 .select("*")
                 .eq("id", user.id)
                 .single();
-            setProfile(profileData);
+
+            // Merge with user_metadata if profile is incomplete
+            // This handles cases where trigger didn't copy all fields or column doesn't exist
+            const mergedProfile = {
+                ...profileData,
+                phone: profileData?.phone || user.user_metadata?.phone,
+                signup_purpose: profileData?.signup_purpose || user.user_metadata?.signup_purpose,
+                name: profileData?.name || user.user_metadata?.full_name
+            };
+
+            setProfile(mergedProfile);
 
             // 2. Fetch My Reservations
             const { data: reservationData } = await supabase
@@ -134,6 +145,12 @@ export default function MyPage() {
                                     <span className="text-pink-600 font-bold">관리자</span> :
                                     <span className="text-gray-600">일반 회원</span>
                                 }
+                            </div>
+                        </div>
+                        <div className="col-span-1 md:col-span-2">
+                            <label className="block text-sm font-medium text-gray-500">가입 목적</label>
+                            <div className="mt-1 text-lg text-gray-900 bg-gray-50 p-3 rounded-lg">
+                                {profile?.signup_purpose || '입력된 가입 목적이 없습니다.'}
                             </div>
                         </div>
                     </div>

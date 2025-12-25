@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/lib/supabase";
+import { formatPhoneNumber } from "@/lib/utils/format";
 
 interface ReservationModalProps {
     isOpen: boolean;
@@ -304,7 +305,7 @@ export function ReservationModal({
                                                 placeholder="010-0000-0000"
                                                 value={formData.contact}
                                                 onChange={(e) =>
-                                                    setFormData({ ...formData, contact: e.target.value })
+                                                    setFormData({ ...formData, contact: formatPhoneNumber(e.target.value) })
                                                 }
                                             />
                                         </div>

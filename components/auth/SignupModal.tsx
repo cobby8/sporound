@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { X, Mail, Lock, User, Phone, FileText, Loader2, CheckCircle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { formatPhoneNumber } from "@/lib/utils/format";
 
 interface SignupModalProps {
     isOpen: boolean;
@@ -16,6 +17,7 @@ export function SignupModal({ isOpen, onClose, onLoginClick }: SignupModalProps)
     const [form, setForm] = useState({
         email: "",
         password: "",
+        passwordConfirm: "",
         name: "",
         phone: "",
         purpose: ""
@@ -23,8 +25,35 @@ export function SignupModal({ isOpen, onClose, onLoginClick }: SignupModalProps)
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState(false);
 
+    // Reset form when modal opens
+    useEffect(() => {
+        if (isOpen) {
+            setForm({
+                email: "",
+                password: "",
+                passwordConfirm: "",
+                name: "",
+                phone: "",
+                purpose: ""
+            });
+            setError(null);
+            setSuccess(false);
+        }
+    }, [isOpen]);
+
+    const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const formatted = formatPhoneNumber(e.target.value);
+        setForm({ ...form, phone: formatted });
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        if (form.password !== form.passwordConfirm) {
+            setError("비밀번호가 일치하지 않습니다.");
+            return;
+        }
+
         setLoading(true);
         setError(null);
 
@@ -44,25 +73,34 @@ export function SignupModal({ isOpen, onClose, onLoginClick }: SignupModalProps)
 
             if (signUpError) throw signUpError;
 
-            // 2. Update Profile (Trigger might handle this, but let's be safe if we need direct insert? 
-            // Usually Supabase handles metadata -> trigger -> profile. 
-            // If we need to update 'phone' column specifically in 'profiles', we rely on the trigger or do it here if user exists.)
-            // Assuming trigger works based on metadata or ID. 
-            // Ideally, we should ensure 'phone' is saved. 
-            // If the trigger copies metadata to columns, good. If not, we might need an update.
-            // Let's assume standard auth flow first. If custom columns 'phone' exists, we should update it.
-
+            // 2. Retry Profile Update (Wait for Trigger)
             if (data.user) {
-                // Optional: Explicitly update profile if trigger doesn't map 'phone' to 'phone' column automatically
-                // But usually we just use metadata. 
-                // However, user asked for "collection". We put it in metadata.
+                const userId = data.user.id;
+                let profileExists = false;
 
-                // Let's try to update profile just in case rows exist
-                await supabase.from('profiles').update({
-                    name: form.name,
-                    phone: form.phone,
-                    // purpose might not have a column, so it stays in metadata
-                }).eq('id', data.user.id);
+                // Retry up to 5 times (2.5 seconds total)
+                for (let i = 0; i < 5; i++) {
+                    const { data: profile } = await supabase
+                        .from('profiles')
+                        .select('id')
+                        .eq('id', userId)
+                        .single();
+
+                    if (profile) {
+                        profileExists = true;
+                        break;
+                    }
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                }
+
+                if (profileExists) {
+                    await supabase.from('profiles').update({
+                        name: form.name,
+                        phone: form.phone,
+                        // Note: If signup_purpose column doesn't exist, this might error or be ignored.
+                        // Ideally we should check schema or catch error, but standard update is fine.
+                    }).eq('id', userId);
+                }
             }
 
             setSuccess(true);
@@ -134,56 +172,81 @@ export function SignupModal({ isOpen, onClose, onLoginClick }: SignupModalProps)
                                                     onChange={e => setForm({ ...form, email: e.target.value })}
                                                     className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 text-gray-900 placeholder:text-gray-500"
                                                     placeholder="name@example.com"
+                                                    autoComplete="off"
+                                                />
+                                            </div>
+                                        </div>
+
+                                        {/* Name */}
+                                        <div className="space-y-1">
+                                            <label className="text-xs font-bold text-gray-600 ml-1">이름</label>
+                                            <div className="relative">
+                                                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
+                                                <input
+                                                    type="text"
+                                                    required
+                                                    value={form.name}
+                                                    onChange={e => setForm({ ...form, name: e.target.value })}
+                                                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 text-gray-900 placeholder:text-gray-500"
+                                                    placeholder="홍길동"
+                                                    autoComplete="off"
                                                 />
                                             </div>
                                         </div>
 
                                         {/* Password */}
-                                        <div className="space-y-1">
-                                            <label className="text-xs font-bold text-gray-600 ml-1">비밀번호</label>
-                                            <div className="relative">
-                                                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
-                                                <input
-                                                    type="password"
-                                                    required
-                                                    minLength={6}
-                                                    value={form.password}
-                                                    onChange={e => setForm({ ...form, password: e.target.value })}
-                                                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 text-gray-900 placeholder:text-gray-500"
-                                                    placeholder="6자 이상 입력"
-                                                />
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="space-y-1">
+                                                <label className="text-xs font-bold text-gray-600 ml-1">비밀번호</label>
+                                                <div className="relative">
+                                                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
+                                                    <input
+                                                        type="password"
+                                                        required
+                                                        minLength={6}
+                                                        value={form.password}
+                                                        onChange={e => setForm({ ...form, password: e.target.value })}
+                                                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 text-gray-900 placeholder:text-gray-500"
+                                                        placeholder="6자 이상"
+                                                        autoComplete="new-password"
+                                                    />
+                                                </div>
+                                            </div>
+                                            <div className="space-y-1">
+                                                <label className="text-xs font-bold text-gray-600 ml-1">비밀번호 확인</label>
+                                                <div className="relative">
+                                                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
+                                                    <input
+                                                        type="password"
+                                                        required
+                                                        minLength={6}
+                                                        value={form.passwordConfirm}
+                                                        onChange={e => setForm({ ...form, passwordConfirm: e.target.value })}
+                                                        className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 transition-all text-gray-900 placeholder:text-gray-500 ${form.passwordConfirm && form.password !== form.passwordConfirm
+                                                                ? "border-red-500 focus:ring-red-500"
+                                                                : "border-gray-300 focus:ring-pink-500"
+                                                            }`}
+                                                        placeholder="한 번 더 입력"
+                                                        autoComplete="new-password"
+                                                    />
+                                                </div>
                                             </div>
                                         </div>
 
-                                        {/* Name & Phone */}
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <div className="space-y-1">
-                                                <label className="text-xs font-bold text-gray-600 ml-1">이름</label>
-                                                <div className="relative">
-                                                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
-                                                    <input
-                                                        type="text"
-                                                        required
-                                                        value={form.name}
-                                                        onChange={e => setForm({ ...form, name: e.target.value })}
-                                                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 text-gray-900 placeholder:text-gray-500"
-                                                        placeholder="홍길동"
-                                                    />
-                                                </div>
-                                            </div>
-                                            <div className="space-y-1">
-                                                <label className="text-xs font-bold text-gray-600 ml-1">연락처</label>
-                                                <div className="relative">
-                                                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
-                                                    <input
-                                                        type="tel"
-                                                        required
-                                                        value={form.phone}
-                                                        onChange={e => setForm({ ...form, phone: e.target.value })}
-                                                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 text-gray-900 placeholder:text-gray-500"
-                                                        placeholder="010-0000-0000"
-                                                    />
-                                                </div>
+                                        {/* Phone */}
+                                        <div className="space-y-1">
+                                            <label className="text-xs font-bold text-gray-600 ml-1">연락처</label>
+                                            <div className="relative">
+                                                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
+                                                <input
+                                                    type="tel"
+                                                    required
+                                                    value={form.phone}
+                                                    onChange={handlePhoneChange}
+                                                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 text-gray-900 placeholder:text-gray-500"
+                                                    placeholder="010-0000-0000"
+                                                    maxLength={13}
+                                                />
                                             </div>
                                         </div>
 
