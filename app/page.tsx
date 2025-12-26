@@ -37,25 +37,25 @@ export default async function Home(props: Props) {
   const displayDate = mondayStr;
 
   return (
-    <main className="min-h-screen bg-gray-50 flex flex-col items-center py-10">
+    <main className="min-h-screen bg-[#0f1117] flex flex-col items-center py-10">
       <div className="w-full max-w-7xl px-4 mb-4 text-center">
-        <h1 className="text-4xl md:text-5xl font-extrabold text-gray-900 mb-2 tracking-tight">
-          <span className="text-pink-600">SPO</span>ROUND
+        <h1 className="text-4xl md:text-5xl font-extrabold text-white mb-2 tracking-tight">
+          <span className="text-pink-500">SPO</span>ROUND
         </h1>
-        <p className="text-lg text-gray-600 mb-6">
+        <p className="text-lg text-gray-400 mb-6">
           스포라운드 체육관 대관 및 예약 시스템
         </p>
 
         {/* Date Navigation */}
-        <div className="flex items-center justify-center gap-4 bg-white inline-flex px-4 py-2 rounded-lg shadow-sm">
-          <Link href={`/?date=${prevDateStr}`} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
-            <ChevronLeft className="w-5 h-5 text-gray-600" />
+        <div className="flex items-center justify-center gap-4 bg-[#0f1117]/60 backdrop-blur-md inline-flex px-4 py-2 rounded-lg border border-white/10 shadow-lg">
+          <Link href={`/?date=${prevDateStr}`} className="p-2 hover:bg-white/10 rounded-full transition-colors text-white">
+            <ChevronLeft className="w-5 h-5" />
           </Link>
-          <span className="text-lg font-bold text-gray-800 min-w-[120px]">
+          <span className="text-lg font-bold text-white min-w-[120px]">
             {displayDate} 주간
           </span>
-          <Link href={`/?date=${nextDateStr}`} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
-            <ChevronRight className="w-5 h-5 text-gray-600" />
+          <Link href={`/?date=${nextDateStr}`} className="p-2 hover:bg-white/10 rounded-full transition-colors text-white">
+            <ChevronRight className="w-5 h-5" />
           </Link>
         </div>
       </div>

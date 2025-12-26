@@ -5,7 +5,11 @@ import { TimeSlot, CellData } from "@/lib/data";
 import { cn } from "@/lib/utils";
 import { ChevronLeft, ChevronRight, AlertTriangle } from "lucide-react";
 import { ReservationModal } from "@/components/ReservationModal";
+import { GlassModalWrapper } from "@/components/ui/GlassModalWrapper";
 import { supabase } from "@/lib/supabase";
+import { useDynamicPricing } from "@/hooks/useDynamicPricing";
+import { timeToMinutes } from "@/utils/pricingCalculator";
+import { Tag, Sparkles } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 interface ScheduleBoardProps {
@@ -35,6 +39,14 @@ export function ScheduleBoard({ schedule, startDate, onOccupiedCellClick, onRese
         court: "pink" | "mint";
         date: string;
     }[]>([]);
+
+    const { rules, loading: pricingLoading } = useDynamicPricing();
+    const [showPolicyModal, setShowPolicyModal] = useState(false);
+
+    // Find Best Price (Simple logic: lowest price per hour that is not 0)
+    const bestPriceRule = rules
+        .filter(r => r.price_per_hour > 0)
+        .sort((a, b) => a.price_per_hour - b.price_per_hour)[0];
 
     const [modalState, setModalState] = useState<{
         isOpen: boolean;
@@ -441,28 +453,38 @@ export function ScheduleBoard({ schedule, startDate, onOccupiedCellClick, onRese
 
     return (
         <>
-            <div className="w-full max-w-[1400px] mx-auto p-2 md:p-4">
+            <div className="w-full max-w-[1400px] mx-auto p-2 md:p-4 relative">
+                {/* Legend (Desktop Only) */}
+                <div className="hidden md:flex absolute top-4 right-4 flex-col gap-1 items-end z-30 pointer-events-none select-none opacity-90">
+                    <div className="flex items-center gap-1.5 bg-[#0f1117]/60 backdrop-blur-md p-1.5 rounded-lg border border-white/10 shadow-sm">
+                        <span className="text-[10px] text-gray-400 font-medium mr-1">Time Discount</span>
+                        <span className="text-[10px] font-bold text-purple-300 bg-purple-500/20 border border-purple-500/30 px-1.5 py-0.5 rounded">SS -70%</span>
+                        <span className="text-[10px] font-bold text-emerald-300 bg-emerald-500/20 border border-emerald-500/30 px-1.5 py-0.5 rounded">S -41%</span>
+                        <span className="text-[10px] font-bold text-blue-300 bg-blue-500/20 border border-blue-500/30 px-1.5 py-0.5 rounded">A -29%</span>
+                    </div>
+                </div>
+
                 {/* Header Title */}
-                <h2 className="text-2xl font-bold mb-6 text-center text-gray-800">
-                    체육관 대관 현황 <span className="text-base font-normal text-gray-900 ml-2">({startDate} 주간)</span>
+                <h2 className="text-2xl font-bold mb-6 text-center text-white">
+                    체육관 대관 현황 <span className="text-base font-normal text-gray-400 ml-2">({startDate} 주간)</span>
                 </h2>
 
                 {/* Mobile Day Selector */}
-                <div className="flex md:hidden items-center justify-between mb-4 bg-gray-100 rounded-lg p-2">
+                <div className="flex md:hidden items-center justify-between mb-4 bg-white/5 border border-white/10 rounded-lg p-2">
                     <button
                         onClick={() => setSelectedDayIndex((prev) => Math.max(0, prev - 1))}
                         disabled={selectedDayIndex === 0}
-                        className="p-2 disabled:opacity-30"
+                        className="p-2 disabled:opacity-30 text-white"
                     >
                         <ChevronLeft className="w-6 h-6" />
                     </button>
-                    <span className="font-bold text-lg">
-                        {currentDay.label} <span className="text-sm text-gray-500 font-normal">({formatDateShort(currentDate)})</span>
+                    <span className="font-bold text-lg text-white">
+                        {currentDay.label} <span className="text-sm text-gray-400 font-normal">({formatDateShort(currentDate)})</span>
                     </span>
                     <button
                         onClick={() => setSelectedDayIndex((prev) => Math.min(DAYS.length - 1, prev + 1))}
                         disabled={selectedDayIndex === DAYS.length - 1}
-                        className="p-2 disabled:opacity-30"
+                        className="p-2 disabled:opacity-30 text-white"
                     >
                         <ChevronRight className="w-6 h-6" />
                     </button>
@@ -475,13 +497,13 @@ export function ScheduleBoard({ schedule, startDate, onOccupiedCellClick, onRese
                     "grid-cols-[50px_1fr_1fr]",
                     // Desktop: Time + 14 columns (7 days * 2 courts)
                     "md:grid-cols-[60px_repeat(14,minmax(0,1fr))]",
-                    "border-t border-l border-gray-200"
+                    "border-t border-l border-white/10"
                 )}>
                     {/* --- HEADERS --- */}
 
                     {/* Time Header (Corner) */}
                     <div
-                        className="bg-gray-50 p-2 text-center font-bold text-xs md:text-sm border-r border-b border-gray-200 flex items-center justify-center sticky z-20 h-[60px] text-gray-900"
+                        className="bg-[#0f1117]/90 backdrop-blur-sm p-2 text-center font-bold text-xs md:text-sm border-r border-b border-white/10 flex items-center justify-center sticky z-20 h-[60px] text-gray-300"
                         style={{ top: `${headerOffset}px` }}
                     >
                         시간
@@ -492,7 +514,7 @@ export function ScheduleBoard({ schedule, startDate, onOccupiedCellClick, onRese
                         <div
                             key={`header-${day.key}`}
                             className={cn(
-                                "bg-gray-50 text-center font-bold text-sm border-r border-b border-gray-200 flex flex-col items-center justify-center sticky z-20 h-[60px]",
+                                "bg-[#0f1117]/90 backdrop-blur-sm text-center font-bold text-sm border-r border-b border-white/10 flex flex-col items-center justify-center sticky z-20 h-[60px]",
                                 // Span 2 columns (Pink + Mint)
                                 "col-span-2",
                                 // Visibility logic
@@ -500,17 +522,17 @@ export function ScheduleBoard({ schedule, startDate, onOccupiedCellClick, onRese
                             )}
                             style={{ top: `${headerOffset}px` }}
                         >
-                            <span className="text-lg text-gray-900 font-bold">
+                            <span className="text-lg text-white font-bold">
                                 {formatDateShort(getDayDate(dIdx))}
                             </span>
-                            <span className="text-xs text-gray-900 font-normal mt-1">{day.label}</span>
+                            <span className="text-xs text-gray-400 font-normal mt-1">{day.label}</span>
                         </div>
                     ))}
 
                     {/* Court Sub-Headers (Pink/Mint) */}
                     {/* Time Spacer Row for Courts (Just another cell in col 1) */}
                     <div
-                        className="bg-gray-50 border-r border-b border-gray-200 text-xs text-center flex items-center justify-center font-semibold sticky z-20 h-[30px] text-gray-900"
+                        className="bg-[#0f1117]/90 backdrop-blur-sm border-r border-b border-white/10 text-xs text-center flex items-center justify-center font-semibold sticky z-20 h-[30px] text-gray-400"
                         style={{ top: `${headerOffset + 60}px` }}
                     >
                         코트
@@ -521,7 +543,7 @@ export function ScheduleBoard({ schedule, startDate, onOccupiedCellClick, onRese
                             {/* Pink Header */}
                             <div
                                 className={cn(
-                                    "bg-gray-100 text-pink-600 font-bold text-xs border-r border-b border-gray-200 flex items-center justify-center sticky z-20 h-[30px]",
+                                    "bg-pink-500/10 backdrop-blur-sm text-pink-400 font-bold text-xs border-r border-b border-white/10 flex items-center justify-center sticky z-20 h-[30px]",
                                     dIdx === selectedDayIndex ? "flex" : "hidden md:flex"
                                 )}
                                 style={{ top: `${headerOffset + 60}px` }}
@@ -531,7 +553,7 @@ export function ScheduleBoard({ schedule, startDate, onOccupiedCellClick, onRese
                             {/* Mint Header */}
                             <div
                                 className={cn(
-                                    "bg-gray-100 text-emerald-600 font-bold text-xs border-r border-b border-gray-200 flex items-center justify-center sticky z-20 h-[30px]",
+                                    "bg-emerald-500/10 backdrop-blur-sm text-emerald-400 font-bold text-xs border-r border-b border-white/10 flex items-center justify-center sticky z-20 h-[30px]",
                                     dIdx === selectedDayIndex ? "flex" : "hidden md:flex"
                                 )}
                                 style={{ top: `${headerOffset + 60}px` }}
@@ -552,7 +574,7 @@ export function ScheduleBoard({ schedule, startDate, onOccupiedCellClick, onRese
                         // We use React.Fragment to flatten the loop into the grid
                         <div key={`row-${rowIndex}`} className="contents">
                             {/* Time Slot */}
-                            <div className="bg-gray-50 text-gray-500 text-xs md:text-xs font-medium border-r border-b border-gray-100 flex items-center justify-center py-0 h-[20px]">
+                            <div className="bg-white/5 text-gray-300 text-xs md:text-xs font-medium border-r border-b border-white/5 flex items-center justify-center py-0 h-[20px]">
                                 {slot.time}
                             </div>
 
@@ -569,6 +591,33 @@ export function ScheduleBoard({ schedule, startDate, onOccupiedCellClick, onRese
                                     const isSelected = selectedSlots.some(
                                         s => s.time === slot.time && s.dayIndex === dIdx && s.court === courtType
                                     );
+
+                                    // Discount Label Logic
+                                    const dayNum = (dIdx + 1) % 7;
+                                    const slotMins = timeToMinutes(slot.time);
+
+                                    const matchingRule = rules.find(r =>
+                                        r.days_of_week.includes(dayNum) &&
+                                        (r.court_id === null || r.court_id === 'global' || r.name.toLowerCase().includes(courtType)) &&
+                                        timeToMinutes(r.start_time) <= slotMins &&
+                                        timeToMinutes(r.end_time) > slotMins
+                                    );
+
+                                    const getTierInfo = (rule?: typeof rules[0]) => {
+                                        if (!rule) return null;
+
+                                        // Weekend Badges
+                                        if (rule.name.includes('S-Weekend')) return { label: '-29%', colorClass: 'text-emerald-300 bg-emerald-500/20 border border-emerald-500/30' };
+                                        if (rule.name.includes('A-Weekend')) return { label: '-12%', colorClass: 'text-blue-300 bg-blue-500/20 border border-blue-500/30' };
+
+                                        // Weekday Badges
+                                        if (rule.name.includes('SS')) return { label: '-70%', colorClass: 'text-purple-300 bg-purple-500/20 border border-purple-500/30' };
+                                        if (rule.name.includes('S Tier')) return { label: '-41%', colorClass: 'text-emerald-300 bg-emerald-500/20 border border-emerald-500/30' };
+                                        if (rule.name.includes('A Tier')) return { label: '-29%', colorClass: 'text-blue-300 bg-blue-500/20 border border-blue-500/30' };
+                                        return null;
+                                    };
+
+                                    const tierInfo = getTierInfo(matchingRule);
 
                                     // Helper for contrast - prefers black for anything even remotely light
                                     const getContrastYIQ = (hexcolor: string) => {
@@ -592,11 +641,11 @@ export function ScheduleBoard({ schedule, startDate, onOccupiedCellClick, onRese
 
                                     // Fallback Classes
                                     const bgColorClass = courtType === "pink"
-                                        ? (isOccupied ? "bg-pink-100" : isSelected ? "bg-pink-500 shadow-md font-bold" : "bg-white hover:bg-pink-50")
-                                        : (isOccupied ? "bg-emerald-100" : isSelected ? "bg-emerald-500 shadow-md font-bold" : "bg-white hover:bg-emerald-50");
+                                        ? (isOccupied ? "bg-pink-500/20 backdrop-blur-sm border border-pink-500/30" : isSelected ? "bg-pink-500 shadow-[0_0_15px_rgba(236,72,153,0.5)] font-bold border border-pink-400" : "bg-transparent hover:bg-pink-500/10 transition-colors")
+                                        : (isOccupied ? "bg-emerald-500/20 backdrop-blur-sm border border-emerald-500/30" : isSelected ? "bg-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.5)] font-bold border border-emerald-400" : "bg-transparent hover:bg-emerald-500/10 transition-colors");
 
-                                    // For default occupied (pink-100 / emerald-100), text should be dark.
-                                    const textColorClass = isSelected ? "text-white" : (courtType === "pink" ? "text-pink-900" : "text-emerald-900");
+                                    // For default occupied, text should be light (pastel) for contrast on dark bg.
+                                    const textColorClass = isSelected ? "text-white" : (courtType === "pink" ? "text-pink-200" : "text-emerald-200");
                                     const finalTextColor = (isOccupied && courtData.color) ? "" : textColorClass; // If custom color, style handles color.
 
                                     return (
@@ -630,13 +679,31 @@ export function ScheduleBoard({ schedule, startDate, onOccupiedCellClick, onRese
                                             )}
                                         >
                                             {/* Time Label (Background) - Visible when not heavily occupied to guide selection */}
+                                            {/* Time & Discount Labels */}
                                             {!isOccupied && (
-                                                <span className={cn(
-                                                    "absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[13px] font-medium pointer-events-none select-none",
-                                                    isSelected ? "text-white/60" : "text-gray-300"
-                                                )}>
-                                                    {slot.time}
-                                                </span>
+                                                <>
+                                                    {isSelected ? (
+                                                        <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[13px] font-medium pointer-events-none select-none text-white/60">
+                                                            {slot.time}
+                                                        </span>
+                                                    ) : tierInfo ? (
+                                                        <div className="absolute inset-0 flex items-center justify-between px-1 pointer-events-none">
+                                                            <span className={cn(
+                                                                "text-[8px] md:text-[9px] font-extrabold px-1 rounded-[3px] leading-tight flex items-center h-[14px] mt-[3px]",
+                                                                tierInfo.colorClass
+                                                            )}>
+                                                                {tierInfo.label}
+                                                            </span>
+                                                            <span className="text-[13px] font-medium select-none text-gray-300">
+                                                                {slot.time}
+                                                            </span>
+                                                        </div>
+                                                    ) : (
+                                                        <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[13px] font-medium pointer-events-none select-none text-gray-300">
+                                                            {slot.time}
+                                                        </span>
+                                                    )}
+                                                </>
                                             )}
 
                                             {isOccupied ? (
@@ -680,6 +747,137 @@ export function ScheduleBoard({ schedule, startDate, onOccupiedCellClick, onRese
                 selectedDate={modalState.date}
                 selectedCourt={modalState.court}
             />
+
+            {/* Floating Best Price Button */}
+            {selectedSlots.length === 0 && !modalState.isOpen && bestPriceRule && (
+                <div className="fixed bottom-8 left-1/2 transform -translate-x-1/2 z-40 animate-in fade-in slide-in-from-bottom-4">
+                    <button
+                        onClick={() => setShowPolicyModal(true)}
+                        className="flex items-center gap-2 bg-gray-900/80 backdrop-blur-md border border-white/10 shadow-xl rounded-full px-5 py-3 hover:bg-gray-800 transition-all active:scale-95 group"
+                    >
+                        <Sparkles className="w-4 h-4 text-emerald-400 group-hover:animate-spin-slow" />
+                        <div className="flex flex-col items-start">
+                            <span className="text-[10px] text-white/50 leading-none mb-0.5">최저가 타임</span>
+                            <span className="text-sm font-bold text-white leading-none">
+                                {bestPriceRule.name} <span className="text-emerald-400">{bestPriceRule.price_per_hour.toLocaleString()}원~</span>
+                            </span>
+                        </div>
+                    </button>
+                </div>
+            )}
+
+            {/* Policy Modal */}
+            <GlassModalWrapper
+                isOpen={showPolicyModal}
+                onClose={() => setShowPolicyModal(false)}
+                title="시간대별 가격 정책"
+                className="max-w-md"
+            >
+                <div className="space-y-3">
+                    {rules.length > 0 ? (() => {
+                        const groupedRules = rules.reduce((acc, rule) => {
+                            const baseName = rule.name.split(' - ')[0]; // "SS Tier (Pink)" from "SS Tier (Pink) - Night"
+                            if (!acc[baseName]) {
+                                acc[baseName] = {
+                                    id: baseName, // Use baseName as a unique ID for the group
+                                    name: baseName,
+                                    price_per_hour: rule.price_per_hour,
+                                    times: [],
+                                    isBestPrice: false, // Will be updated later
+                                    isHotPrice: false, // Will be updated later
+                                };
+                            }
+                            acc[baseName].times.push(`${rule.start_time.slice(0, 5)} ~ ${rule.end_time.slice(0, 5)}`);
+                            return acc;
+                        }, {} as Record<string, { id: string; name: string; price_per_hour: number; times: string[]; isBestPrice: boolean; isHotPrice: boolean; }>);
+
+                        // Determine best and hot prices
+                        let minPrice = Infinity;
+                        let maxPrice = 0;
+                        if (rules.length > 0) {
+                            minPrice = Math.min(...rules.map(r => r.price_per_hour));
+                            maxPrice = Math.max(...rules.map(r => r.price_per_hour));
+                        }
+
+                        Object.values(groupedRules).forEach(group => {
+                            if (group.price_per_hour === minPrice) {
+                                group.isBestPrice = true;
+                            }
+                            // Define "hot" as being in the lower 25% of the price range, but not the absolute minimum
+                            // Or, simpler, if it's an 'S Tier' rule and not the best price.
+                            if (group.name.includes('S Tier') && !group.isBestPrice) {
+                                group.isHotPrice = true;
+                            }
+
+                            // Merge "23:00 ~ 23:59" and "00:00 ~ 01:00" (Weekday) -> "23:00 ~ 01:00"
+                            const hasNight1 = group.times.some(t => t.includes('23:00') && t.includes('23:59'));
+                            const hasNight2 = group.times.some(t => t.includes('00:00') && t.includes('01:00'));
+
+                            if (hasNight1 && hasNight2) {
+                                group.times = group.times.filter(t =>
+                                    !((t.includes('23:00') && t.includes('23:59')) ||
+                                        (t.includes('00:00') && t.includes('01:00')))
+                                );
+                                group.times.push('23:00 ~ 01:00');
+                            }
+
+                            // Merge "22:00 ~ 23:59" and "00:00 ~ 02:00" (Weekend) -> "22:00 ~ 02:00"
+                            const hasWkNight1 = group.times.some(t => t.includes('22:00') && t.includes('23:59'));
+                            const hasWkNight2 = group.times.some(t => t.includes('00:00') && t.includes('02:00'));
+
+                            if (hasWkNight1 && hasWkNight2) {
+                                group.times = group.times.filter(t =>
+                                    !((t.includes('22:00') && t.includes('23:59')) ||
+                                        (t.includes('00:00') && t.includes('02:00')))
+                                );
+                                group.times.push('22:00 ~ 02:00');
+                            }
+
+                            // Sort times for consistent display
+                            group.times.sort();
+                        });
+
+                        const displayRules = Object.values(groupedRules).sort((a, b) => {
+                            // Sort by price_per_hour ascending, then by name
+                            if (a.price_per_hour !== b.price_per_hour) {
+                                return a.price_per_hour - b.price_per_hour;
+                            }
+                            return a.name.localeCompare(b.name);
+                        });
+
+                        return displayRules.map((group) => (
+                            <div key={group.id} className={cn(
+                                "flex items-center justify-between p-3 rounded-xl border",
+                                group.isBestPrice ? "bg-emerald-500/10 border-emerald-500/30" : "bg-white/5 border-white/10"
+                            )}>
+                                <div className="flex flex-col">
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-sm font-bold text-white">{group.name}</span>
+                                        {group.isBestPrice && (
+                                            <span className="text-[10px] bg-emerald-500 text-black font-bold px-1.5 py-0.5 rounded-full">BEST</span>
+                                        )}
+                                        {group.isHotPrice && !group.isBestPrice && (
+                                            <span className="text-[10px] bg-orange-500 text-black font-bold px-1.5 py-0.5 rounded-full">HOT</span>
+                                        )}
+                                    </div>
+                                    <span className="text-xs text-white/50">
+                                        {group.times.join(', ')}
+                                    </span>
+                                </div>
+                                <span className="text-sm font-bold text-white">
+                                    {group.price_per_hour.toLocaleString()}원
+                                    <span className="text-[10px] font-normal text-white/40 ml-0.5">/시간</span>
+                                </span>
+                            </div>
+                        ));
+                    })() : (
+                        <div className="text-center text-white/50 py-4">정책 로딩 중...</div>
+                    )}
+                </div>
+                <div className="mt-4 p-3 bg-white/5 rounded-lg text-xs text-white/40">
+                    * 공휴일 및 주말은 별도 요금이 적용될 수 있습니다.
+                </div>
+            </GlassModalWrapper>
 
             {/* Floating Reservation Button - Updated Horizontal Design */}
             {selectedSlots.length > 0 && !modalState.isOpen && (

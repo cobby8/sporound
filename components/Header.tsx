@@ -74,19 +74,19 @@ export function Header() {
 
     return (
         <>
-            <header className="sticky top-0 z-40 w-full bg-white/80 backdrop-blur-md border-b border-gray-100">
+            <header className="sticky top-0 z-40 w-full bg-[#0f1117]/80 backdrop-blur-md border-b border-white/5">
                 <div className="container mx-auto px-4 h-16 flex items-center justify-between">
                     <div className="flex items-center gap-4">
                         {/* Mobile Menu Button - Visible only on mobile */}
                         <button
-                            className="md:hidden p-2 -ml-2 text-gray-600 hover:text-gray-900"
+                            className="md:hidden p-2 -ml-2 text-gray-400 hover:text-white"
                             onClick={toggleMenu}
                         >
                             {isMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
                         </button>
 
                         <Link href="/" className="font-extrabold text-xl tracking-tight">
-                            <span className="text-pink-600">SPO</span><span className="text-gray-900">ROUND</span>
+                            <span className="text-pink-500">SPO</span><span className="text-white">ROUND</span>
                         </Link>
                     </div>
 
@@ -96,8 +96,8 @@ export function Header() {
                             <Link
                                 href="/"
                                 className={cn(
-                                    "text-sm font-medium transition-colors hover:text-pink-600",
-                                    pathname === "/" ? "text-pink-600" : "text-gray-600"
+                                    "text-sm font-medium transition-colors hover:text-pink-400",
+                                    pathname === "/" ? "text-pink-500" : "text-gray-400"
                                 )}
                             >
                                 대관/예약
@@ -105,8 +105,8 @@ export function Header() {
                             <Link
                                 href="/programs"
                                 className={cn(
-                                    "text-sm font-medium transition-colors hover:text-pink-600",
-                                    pathname === "/programs" ? "text-pink-600" : "text-gray-600"
+                                    "text-sm font-medium transition-colors hover:text-pink-400",
+                                    pathname === "/programs" ? "text-pink-500" : "text-gray-400"
                                 )}
                             >
                                 프로그램 소개
@@ -114,8 +114,8 @@ export function Header() {
                             <Link
                                 href="/info/facility"
                                 className={cn(
-                                    "text-sm font-medium transition-colors hover:text-pink-600",
-                                    pathname === "/info/facility" ? "text-pink-600" : "text-gray-600"
+                                    "text-sm font-medium transition-colors hover:text-pink-400",
+                                    pathname === "/info/facility" ? "text-pink-500" : "text-gray-400"
                                 )}
                             >
                                 시설 안내
@@ -123,8 +123,8 @@ export function Header() {
                             <Link
                                 href="/info/guide"
                                 className={cn(
-                                    "text-sm font-medium transition-colors hover:text-pink-600",
-                                    pathname === "/info/guide" ? "text-pink-600" : "text-gray-600"
+                                    "text-sm font-medium transition-colors hover:text-pink-400",
+                                    pathname === "/info/guide" ? "text-pink-500" : "text-gray-400"
                                 )}
                             >
                                 이용 안내
@@ -137,20 +137,20 @@ export function Header() {
                                 {isAdmin && (
                                     <Link
                                         href="/admin"
-                                        className="hidden md:flex items-center justify-center px-3 py-1.5 text-xs font-bold text-white bg-gray-800 rounded hover:bg-gray-700 transition-colors mr-2"
+                                        className="hidden md:flex items-center justify-center px-3 py-1.5 text-xs font-bold text-black bg-white rounded hover:bg-gray-200 transition-colors mr-2"
                                     >
                                         관리자 모드
                                     </Link>
                                 )}
                                 <Link href="/mypage" className="hidden md:flex flex-col items-end mr-2 hover:opacity-80 transition-opacity group">
-                                    <span className="text-xs text-gray-400 group-hover:text-pink-500">마이페이지</span>
-                                    <span className="text-sm font-bold text-gray-800 group-hover:text-pink-600">
+                                    <span className="text-[10px] text-gray-500 group-hover:text-pink-400">마이페이지</span>
+                                    <span className="text-sm font-bold text-gray-200 group-hover:text-white">
                                         {user.user_metadata.full_name || user.email?.split('@')[0] + '님'}
                                     </span>
                                 </Link>
                                 <button
                                     onClick={handleLogout}
-                                    className="p-2 text-gray-500 hover:text-red-500 hover:bg-red-50 rounded-full transition-all"
+                                    className="p-2 text-gray-400 hover:text-red-400 hover:bg-white/5 rounded-full transition-all"
                                     title="로그아웃"
                                 >
                                     <LogOut className="w-5 h-5" />
@@ -159,7 +159,7 @@ export function Header() {
                         ) : (
                             <button
                                 onClick={() => setIsLoginModalOpen(true)}
-                                className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white text-sm font-bold rounded-full hover:bg-gray-800 transition-colors"
+                                className="flex items-center gap-2 px-4 py-2 bg-white text-black text-sm font-bold rounded-full hover:bg-gray-200 transition-colors"
                             >
                                 <UserIcon className="w-4 h-4" />
                                 <span>로그인</span>
@@ -170,20 +170,20 @@ export function Header() {
 
                 {/* Mobile Menu Dropdown */}
                 {isMenuOpen && (
-                    <div className="md:hidden border-t border-gray-100 bg-white absolute w-full left-0 shadow-lg">
+                    <div className="md:hidden border-t border-white/5 bg-[#0f1117] absolute w-full left-0 shadow-xl backdrop-blur-md">
                         <div className="flex flex-col p-4 space-y-4">
-                            <Link href="/" className="text-base font-medium text-gray-700 py-2 border-b border-gray-50">대관/예약</Link>
-                            <Link href="/programs" className="text-base font-medium text-gray-700 py-2 border-b border-gray-50">프로그램 소개</Link>
-                            <Link href="/info/facility" className="text-base font-medium text-gray-700 py-2 border-b border-gray-50">시설 안내</Link>
-                            <Link href="/info/guide" className="text-base font-medium text-gray-700 py-2 border-b border-gray-50">이용 안내</Link>
+                            <Link href="/" className="text-base font-medium text-gray-300 py-2 border-b border-white/5 hover:text-white">대관/예약</Link>
+                            <Link href="/programs" className="text-base font-medium text-gray-300 py-2 border-b border-white/5 hover:text-white">프로그램 소개</Link>
+                            <Link href="/info/facility" className="text-base font-medium text-gray-300 py-2 border-b border-white/5 hover:text-white">시설 안내</Link>
+                            <Link href="/info/guide" className="text-base font-medium text-gray-300 py-2 border-b border-white/5 hover:text-white">이용 안내</Link>
                             {user && (
-                                <Link href="/mypage" className="text-base font-medium text-gray-700 py-2 border-b border-gray-50 flex items-center justify-between">
+                                <Link href="/mypage" className="text-base font-medium text-gray-300 py-2 border-b border-white/5 flex items-center justify-between hover:text-white">
                                     마이페이지
                                     <span className="text-xs text-gray-500">{user.user_metadata.full_name}</span>
                                 </Link>
                             )}
                             {isAdmin && (
-                                <Link href="/admin" className="text-base font-bold text-pink-600 py-2">
+                                <Link href="/admin" className="text-base font-bold text-pink-500 py-2">
                                     관리자 모드 접속
                                 </Link>
                             )}

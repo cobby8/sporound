@@ -21,8 +21,8 @@ interface ReservationModalProps {
 export function ReservationModal({
     isOpen,
     onClose,
-    startTime,
-    endTime,
+    startTime: propStartTime,
+    endTime: propEndTime,
     selectedDay,
     selectedDate,
     selectedCourt,
@@ -35,20 +35,32 @@ export function ReservationModal({
         contact: "",
         purpose: "",
         peopleCount: 1,
-        useWaitingRoom: false,
-        isLongTerm: false,
-        isAdjustmentRequested: false,
-        adjustmentReason: "",
     });
+
+    // Internal State for overrides (Package Selection)
+    const [startTime, setStartTime] = useState(propStartTime);
+    const [endTime, setEndTime] = useState(propEndTime);
+
     const [totalPrice, setTotalPrice] = useState(0);
+    const [standardPrice, setStandardPrice] = useState(0); // The base "Daily" price
     const [duration, setDuration] = useState(1);
+    const [basePeakPrice, setBasePeakPrice] = useState(0);
+
+    const [reservationType, setReservationType] = useState<"daily" | "monthly" | "3month" | "package">("daily");
+    const [selectedPackage, setSelectedPackage] = useState<any>(null);
+    const [viewingPackage, setViewingPackage] = useState<any>(null); // For the popup
 
     // Check user on open
     useEffect(() => {
         if (isOpen) {
             checkUser();
+            // Reset State
+            setReservationType("daily");
+            setSelectedPackage(null);
+            setStartTime(propStartTime);
+            setEndTime(propEndTime);
         }
-    }, [isOpen]);
+    }, [isOpen, propStartTime, propEndTime]);
 
     const checkUser = async () => {
         setLoading(true);
@@ -71,22 +83,63 @@ export function ReservationModal({
         setLoading(false);
     };
 
-    const [reservationType, setReservationType] = useState<"daily" | "monthly" | "3month">("daily");
-
     // Price Calculation Logic
-    const { getPrice, loading: pricingLoading } = useDynamicPricing();
+    const { getPrice, rules, packages, loading: pricingLoading } = useDynamicPricing();
+    const [recommendedPackages, setRecommendedPackages] = useState<any[]>([]);
+
+    useEffect(() => {
+        if (!isOpen || pricingLoading) return;
+
+        // 1. Identify Court ID from rules
+        const relevantRule = rules.find(r => r.name.toLowerCase().includes(selectedCourt));
+        const currentCourtId = relevantRule?.court_id;
+
+        if (currentCourtId) {
+            // 2. Filter Recommendations (Using Original Props to suggest relevant packs)
+            const toMinutes = (t: string) => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
+            const sMins = toMinutes(propStartTime);
+            const eMins = toMinutes(propEndTime);
+
+            // Get current day index (0=Sun, 6=Sat) based on selectedDate string
+            const currentDayIndex = new Date(selectedDate).getDay();
+
+            const recs = packages.filter(pkg => {
+                if (pkg.court_id !== currentCourtId) return false;
+
+                // Filter by Day of Week 
+                if (Array.isArray(pkg.days_of_week) && !pkg.days_of_week.includes(currentDayIndex)) {
+                    return false;
+                }
+
+                const pkgStart = toMinutes(pkg.start_time);
+                const pkgEnd = toMinutes(pkg.end_time);
+                return pkgStart <= sMins && pkgEnd >= eMins;
+            });
+            setRecommendedPackages(recs);
+        }
+    }, [isOpen, pricingLoading, rules, packages, selectedCourt, propStartTime, propEndTime, selectedDate]);
+
 
     useEffect(() => {
         if (!isOpen) return;
 
-        const calculatePrice = () => {
-            const dateObj = new Date(selectedDay); // Note: selectedDay is 'YYYY-MM-DD' or similar? 
-            // Actually in previous code selectedDay was string '토요일' or similar?
-            // Re-checking props: selectedDate is 'YYYY-MM-DD', selectedDay is '월요일'.
-            // We need a Date object for the calculator to determine day of week.
-            const targetDate = new Date(selectedDate);
+        // If a package is selected, use fixed package price
+        if (reservationType === 'package' && selectedPackage) {
+            setTotalPrice(selectedPackage.total_price);
 
-            // Helper: "HH:mm" -> minutes for duration calc
+            // Recalculate duration for display
+            const toMinutes = (t: string) => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
+            const s = toMinutes(selectedPackage.start_time);
+            const e = toMinutes(selectedPackage.end_time);
+            setDuration((e - s) / 60);
+
+            // Base peak (Just for reference, maybe not needed for package?)
+            setBasePeakPrice(0); // Packages have their own "Badge" for discount
+            return;
+        }
+
+        const calculatePrice = () => {
+            const dateObj = new Date(selectedDate);
             const toMinutes = (timeStr: string) => {
                 const [h, m] = timeStr.split(':').map(Number);
                 return h * 60 + m;
@@ -98,68 +151,60 @@ export function ReservationModal({
 
             setDuration(hours);
 
-            const isEvent = formData.peopleCount >= 50;
+            // Base Peak Price Calculation (for Strikethrough)
+            const peakRate = selectedCourt === 'pink' ? 85000 : 75000;
+            setBasePeakPrice(peakRate * hours);
 
-            let price = 0;
-            let waitingRoomPrice = 0;
+            const isEvent = formData.peopleCount >= 50;
+            let currentStandardPrice = 0;
 
             if (isEvent) {
-                // Event Pricing (Legacy Logic maintained for large events for now, or move to DB later)
-                // Assuming events are still custom/flat rate as per original code
-                if (formData.peopleCount >= 200) price = 400000 * hours; // Assuming original was flat? 
-                // Original logic: "if (formData.peopleCount >= 200) unitPrice = 400000;" -> unit price per hour?
-                // Or flat? The original code did "let price = unitPrice * hours".
-                // So yes, unitPrice was per-hour.
                 let unitPrice = 0;
                 if (formData.peopleCount >= 200) unitPrice = 400000;
                 else if (formData.peopleCount >= 150) unitPrice = 300000;
                 else if (formData.peopleCount >= 100) unitPrice = 250000;
                 else unitPrice = selectedCourt === 'pink' ? 110000 : 90000;
-                price = unitPrice * hours;
+                currentStandardPrice = unitPrice * hours;
             } else {
                 // Dynamic Rule Calculation
-                const { total } = getPrice(targetDate, startTime, endTime, selectedCourt as 'pink' | 'mint');
-                price = total;
-
-                // Waiting Room Logic
-                waitingRoomPrice = 20000;
-                // Monthly/3-Month discounts for waiting room
-                if (reservationType === 'monthly' || reservationType === '3month') {
-                    waitingRoomPrice = 10000;
-                }
-
-                // Long-term Contract Discounts (Applied to the Rule Price)
-                if (reservationType === 'monthly') {
-                    // 10% discount on the calculated price
-                    price = price * 0.9;
-                } else if (reservationType === '3month') {
-                    // 20% discount on the calculated price
-                    price = price * 0.8;
-                }
+                const { total } = getPrice(dateObj, startTime, endTime, selectedCourt as 'pink' | 'mint');
+                currentStandardPrice = total;
             }
 
-            // Waiting Room Cost Addition
-            if (formData.useWaitingRoom) {
-                if (!isEvent) { // Event includes it? Original logic: "if (isEvent) { // Included }"
-                    if (hours >= 4 || reservationType === '3month') {
-                        // Free for >4h or 3-month contract (Updated Policy)
-                    } else {
-                        price += waitingRoomPrice;
-                    }
-                }
+            setStandardPrice(Math.floor(currentStandardPrice / 100) * 100);
+
+            // Apply Discount based on Type
+            let finalPrice = currentStandardPrice;
+            if (reservationType === 'monthly') {
+                finalPrice = finalPrice * 0.9;
+            } else if (reservationType === '3month') {
+                finalPrice = finalPrice * 0.8;
             }
 
-            setTotalPrice(Math.floor(price / 100) * 100);
+            setTotalPrice(Math.floor(finalPrice / 100) * 100);
         };
 
         if (!pricingLoading) {
             calculatePrice();
         }
-    }, [isOpen, startTime, endTime, selectedDate, selectedCourt, formData.peopleCount, formData.useWaitingRoom, reservationType, pricingLoading, getPrice]);
+    }, [isOpen, startTime, endTime, selectedDate, selectedCourt, formData.peopleCount, reservationType, pricingLoading, getPrice, selectedPackage]);
 
     const copyAccount = () => {
         navigator.clipboard.writeText("394-910573-99907");
         alert("계좌번호가 복사되었습니다.");
+    };
+
+    const handleContactAdmin = () => {
+        alert("관리자 연락처: 010-0000-0000\n(기능 준비중입니다)");
+    };
+
+    const applyPackage = () => {
+        if (!viewingPackage) return;
+        setSelectedPackage(viewingPackage);
+        setReservationType('package');
+        setStartTime(viewingPackage.start_time.slice(0, 5));
+        setEndTime(viewingPackage.end_time.slice(0, 5));
+        setViewingPackage(null); // Close popup
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -196,28 +241,28 @@ export function ReservationModal({
                 total_price: totalPrice,
                 status: 'pending',
                 team_name: formData.teamName || null,
-                payment_status: formData.isAdjustmentRequested ? 'adjustment_requested' : 'unpaid',
-                adjustment_reason: formData.isAdjustmentRequested ? formData.adjustmentReason : null
+                payment_status: 'unpaid',
             });
 
         if (error) {
             console.error(error);
             alert('예약 신청 중 오류가 발생했습니다.');
         } else {
-            alert(`예약이 접수되었습니다!${formData.isAdjustmentRequested ? '\n\n[안내] 대관비 조정 요청이 접수되었습니다.\n관리자 확인 후 최종 금액이 안내될 예정입니다.' : `\n\n[입금안내]\n하나은행 394-910573-99907 이창민\n입금액: ${totalPrice.toLocaleString()}원\n\n입금이 확인되면 예약이 확정됩니다.`}`);
+            alert(`예약이 접수되었습니다!\n\n[입금안내]\n하나은행 394-910573-99907 이창민\n입금액: ${totalPrice.toLocaleString()}원\n\n입금이 확인되면 예약이 확정됩니다.`);
             onClose();
-            setFormData({ name: "", teamName: "", contact: "", purpose: "", peopleCount: 1, useWaitingRoom: false, isLongTerm: false, isAdjustmentRequested: false, adjustmentReason: "" });
+            setFormData({ name: "", teamName: "", contact: "", purpose: "", peopleCount: 1 });
         }
     };
 
     const courtName = selectedCourt === "pink" ? "핑크 코트" : "민트 코트";
 
-    // Mapped Packages for UI (Visualizing Reservation Types as Packages)
+    // Mapped Packages for UI (Using standardPrice to keep them static)
     const packageOptions = [
         {
             id: 'daily',
             title: '일일 대관',
-            price: totalPrice, // Shows current calculated price
+            price: standardPrice,
+            originalPrice: (basePeakPrice > standardPrice) ? basePeakPrice : undefined,
             description: '1회성 자유 예약',
             badge: 'BASIC',
             discountRate: 0
@@ -225,9 +270,7 @@ export function ReservationModal({
         {
             id: 'monthly',
             title: '1개월 정기',
-            price: Math.floor(totalPrice * (reservationType === 'daily' ? 0.9 : 1)), // Preview price if switched? 
-            // Better: Let the main price update, here just show generic info or relative?
-            // Actually, best to show the *potential* price or just descriptors.
+            price: Math.floor(standardPrice * 0.9),
             description: '월 4회 이상 (10% 할인)',
             badge: '10% OFF',
             discountRate: 10
@@ -235,7 +278,7 @@ export function ReservationModal({
         {
             id: '3month',
             title: '3개월 정기',
-            price: Math.floor(totalPrice * (reservationType === 'daily' ? 0.8 : 1)),
+            price: Math.floor(standardPrice * 0.8),
             description: '장기 계약 (20% 할인)',
             badge: '20% OFF',
             discountRate: 20
@@ -249,7 +292,7 @@ export function ReservationModal({
             title="Court Reservation"
             className="border-t border-white/10"
         >
-            <div className="space-y-8 pb-20"> {/* pb-20 for fixed bottom bar */}
+            <div className="space-y-8 pb-20 relative">
 
                 {/* 1. Header Info */}
                 <div className="text-center space-y-1">
@@ -264,25 +307,101 @@ export function ReservationModal({
 
                 {/* 2. Package Selection (Horizontal Scroll) */}
                 <div className="space-y-3">
-                    <label className="text-sm font-medium text-white/70 px-1">Select Package</label>
+                    <label className="text-sm font-medium text-white/70 px-1">TYPE</label>
                     <div className="flex gap-3 overflow-x-auto pb-4 -mx-6 px-6 scrollbar-hide snap-x">
                         {packageOptions.map((pkg) => (
                             <PackageCard
                                 key={pkg.id}
                                 title={pkg.title}
-                                price={pkg.id === reservationType ? totalPrice : 0} // Only show price on selected for clarity, or show generic
-                                // Actually, showing the price estimate for each would be cool but requires complex calc. 
-                                // For now, simple text or hiding price if not selected.
-                                // Let's hide specific price on unselected cards to avoid confusion, or just show description.
+                                price={pkg.price}
+                                originalPrice={pkg.originalPrice}
                                 description={pkg.description}
                                 isSelected={reservationType === pkg.id}
-                                onSelect={() => setReservationType(pkg.id as any)}
+                                onSelect={() => {
+                                    setReservationType(pkg.id as any);
+                                    setSelectedPackage(null); // Reset package override
+                                    setStartTime(propStartTime); // Reset time
+                                    setEndTime(propEndTime);
+                                }}
                                 discountRate={pkg.discountRate}
                                 colorTheme={selectedCourt}
                             />
                         ))}
                     </div>
                 </div>
+
+                {/* Recommended Packages Section */}
+                {recommendedPackages.length > 0 && (
+                    <div className="space-y-3">
+                        <div className="flex items-center gap-2 px-1">
+                            <label className="text-sm font-medium text-white/70">추천 패키지</label>
+                            <span className="text-[10px] bg-gradient-to-r from-amber-400 to-orange-500 text-black px-1.5 py-0.5 rounded-sm font-bold">BEST</span>
+                        </div>
+                        <div className="bg-white/5 border border-white/10 rounded-xl p-3 space-y-2">
+                            {recommendedPackages.map((pkg) => (
+                                <div
+                                    key={pkg.id}
+                                    onClick={() => setViewingPackage(pkg)}
+                                    className={`flex items-center justify-between p-2 rounded-lg transition-colors cursor-pointer border hover:bg-white/5 ${selectedPackage?.id === pkg.id ? 'bg-emerald-500/10 border-emerald-500/50' : 'border-transparent hover:border-white/10'}`}
+                                >
+                                    <div className="flex flex-col">
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-sm font-bold text-white">{pkg.name}</span>
+                                            {pkg.badge_text && (
+                                                <span className="text-[10px] bg-white/20 text-white px-1 py-0.5 rounded">{pkg.badge_text}</span>
+                                            )}
+                                        </div>
+                                        <span className="text-xs text-white/50">{pkg.start_time.slice(0, 5)} ~ {pkg.end_time.slice(0, 5)} | {pkg.description}</span>
+                                    </div>
+                                    <div className="text-right">
+                                        <span className={`text-sm font-bold ${selectedPackage?.id === pkg.id ? 'text-emerald-400' : 'text-emerald-400'}`}>{pkg.total_price.toLocaleString()}원</span>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {/* viewingPackage Modal Overlay */}
+                {viewingPackage && (
+                    <div className="absolute inset-0 z-30 flex items-center justify-center p-4">
+                        <div className="absolute inset-0 bg-black/80 backdrop-blur-sm rounded-3xl" onClick={() => setViewingPackage(null)} />
+                        <div className="bg-gray-900 border border-white/10 p-6 rounded-2xl w-full max-w-sm relative z-40 shadow-2xl">
+                            <h3 className="text-xl font-bold text-white mb-2">{viewingPackage.name}</h3>
+                            <div className="space-y-4">
+                                <div className="bg-white/5 p-3 rounded-lg space-y-1">
+                                    <p className="text-sm text-white/60">시간</p>
+                                    <p className="text-lg font-bold text-white">{viewingPackage.start_time.slice(0, 5)} ~ {viewingPackage.end_time.slice(0, 5)}</p>
+                                </div>
+                                <div className="bg-white/5 p-3 rounded-lg space-y-1">
+                                    <p className="text-sm text-white/60">가격</p>
+                                    <div className="flex items-center gap-2">
+                                        <p className="text-2xl font-bold text-emerald-400">{viewingPackage.total_price.toLocaleString()}원</p>
+                                        <span className="text-xs bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full">{viewingPackage.badge_text || 'Special'}</span>
+                                    </div>
+                                </div>
+                                <p className="text-sm text-white/70 leading-relaxed">
+                                    {viewingPackage.description}
+                                </p>
+                            </div>
+                            <div className="flex gap-3 mt-6">
+                                <button
+                                    onClick={() => setViewingPackage(null)}
+                                    className="flex-1 py-3 rounded-xl bg-white/5 hover:bg-white/10 text-white font-medium transition-colors"
+                                >
+                                    취소
+                                </button>
+                                <button
+                                    onClick={applyPackage}
+                                    className="flex-1 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold transition-colors shadow-lg shadow-emerald-500/20"
+                                >
+                                    적용하기
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
 
                 {/* 3. Details Form (Glass Inputs) */}
                 <div className="space-y-5">
@@ -336,26 +455,22 @@ export function ReservationModal({
                             >
                                 <Minus className="w-4 h-4" />
                             </button>
-                            <span className="text-white font-bold w-8 text-center">{formData.peopleCount}</span>
+                            <input
+                                type="number"
+                                min={1}
+                                value={formData.peopleCount}
+                                onChange={(e) => {
+                                    const val = parseInt(e.target.value) || 1;
+                                    setFormData(p => ({ ...p, peopleCount: Math.max(1, val) }));
+                                }}
+                                className="w-12 bg-transparent text-center text-white font-bold focus:outline-none [-moz-appearance:_textfield] [&::-webkit-inner-spin-button]:m-0 [&::-webkit-outer-spin-button]:m-0"
+                            />
                             <button
                                 onClick={() => setFormData(p => ({ ...p, peopleCount: p.peopleCount + 1 }))}
                                 className="w-8 h-8 flex items-center justify-center rounded-md hover:bg-white/10 text-white transition-colors"
                             >
                                 <Plus className="w-4 h-4" />
                             </button>
-                        </div>
-                    </div>
-
-                    {/* Waiting Room Toggle */}
-                    <div className="flex items-center justify-between bg-white/5 border border-white/10 rounded-xl p-4 cursor-pointer" onClick={() => setFormData(p => ({ ...p, useWaitingRoom: !p.useWaitingRoom }))}>
-                        <div className="flex flex-col">
-                            <span className="text-sm font-medium text-white/90">2층 대기실 사용</span>
-                            <span className="text-xs text-white/40">
-                                {duration >= 4 || reservationType === '3month' ? <span className="text-emerald-400 font-bold">무료 제공 (조건 충족)</span> : "+20,000원"}
-                            </span>
-                        </div>
-                        <div className={`w-12 h-6 rounded-full transition-colors relative ${formData.useWaitingRoom ? (selectedCourt === 'pink' ? 'bg-pink-500' : 'bg-emerald-500') : 'bg-white/10'}`}>
-                            <div className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${formData.useWaitingRoom ? 'translate-x-6' : 'translate-x-0'}`} />
                         </div>
                     </div>
 
@@ -371,30 +486,14 @@ export function ReservationModal({
                         />
                     </div>
 
-                    {/* Adjustment Request */}
-                    <div className="flex items-start gap-3 pt-2">
-                        <div className="flex items-center h-5">
-                            <input
-                                type="checkbox"
-                                id="adj"
-                                checked={formData.isAdjustmentRequested}
-                                onChange={(e) => setFormData({ ...formData, isAdjustmentRequested: e.target.checked })}
-                                className="w-4 h-4 rounded border-white/30 text-pink-500 focus:ring-pink-500 bg-white/5"
-                            />
-                        </div>
-                        <div className="flex flex-col w-full">
-                            <label htmlFor="adj" className="text-sm font-medium text-white/80">대관비 조정 요청</label>
-                            {formData.isAdjustmentRequested && (
-                                <input
-                                    type="text"
-                                    value={formData.adjustmentReason}
-                                    onChange={(e) => setFormData({ ...formData, adjustmentReason: e.target.value })}
-                                    placeholder="조정 사유를 입력해주세요"
-                                    className="mt-2 w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder:text-white/20 focus:outline-none"
-                                />
-                            )}
-                        </div>
-                    </div>
+                    {/* Contact Admin Button */}
+                    <button
+                        type="button"
+                        onClick={handleContactAdmin}
+                        className="w-full bg-white/5 border border-white/10 hover:bg-white/10 text-white/60 hover:text-white text-xs py-3 rounded-lg transition-all"
+                    >
+                        관리자에게 연락하기 / 문의하기
+                    </button>
 
                 </div>
             </div>
