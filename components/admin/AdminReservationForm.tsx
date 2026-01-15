@@ -324,6 +324,17 @@ export function AdminReservationForm({ onSuccess, initialData, isCopyMode = fals
 
             {step === "user" && (
                 <div className="space-y-6">
+                    {initialData && !isCopyMode && (
+                        <div className="flex justify-end mb-4">
+                            <button
+                                type="button"
+                                onClick={() => window.open(`/contract/${initialData.id}`, '_blank')}
+                                className="text-sm text-pink-600 hover:text-pink-700 font-bold underline flex items-center gap-1"
+                            >
+                                📄 전자 계약서 관리
+                            </button>
+                        </div>
+                    )}
                     <div className="flex bg-gray-100 p-1 rounded-lg">
                         <button
                             className={`flex-1 py-2 text-sm font-bold rounded-md transition-all ${!isGuest ? 'bg-white shadow text-gray-900' : 'text-gray-600 hover:text-gray-900'}`}

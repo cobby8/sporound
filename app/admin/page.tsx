@@ -414,6 +414,22 @@ export default function AdminPage() {
                 </div>
             </div>
 
+            {/* CMS Navigation */}
+            <div className="px-6 py-3 bg-white border-b border-gray-200 flex flex-wrap items-center gap-4">
+                <span className="text-sm font-bold text-gray-500">콘텐츠 관리:</span>
+                <a href="/admin/cms/program" className="text-sm font-bold text-gray-700 hover:text-pink-600 flex items-center gap-1">
+                    <Edit2 className="w-4 h-4" /> 프로그램 소개
+                </a>
+                <span className="text-gray-300">|</span>
+                <a href="/admin/cms/facility" className="text-sm font-bold text-gray-700 hover:text-pink-600 flex items-center gap-1">
+                    <Edit2 className="w-4 h-4" /> 시설 안내
+                </a>
+                <span className="text-gray-300">|</span>
+                <a href="/admin/cms/guide" className="text-sm font-bold text-gray-700 hover:text-pink-600 flex items-center gap-1">
+                    <Edit2 className="w-4 h-4" /> 이용 안내
+                </a>
+            </div>
+
             {/* Filter Bar */}
             <div className="px-6 py-3 bg-gray-50 border-b border-gray-200 flex flex-wrap items-center justify-between gap-3">
                 <div className="flex flex-wrap items-center gap-3">

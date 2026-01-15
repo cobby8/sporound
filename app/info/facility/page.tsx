@@ -1,45 +1,62 @@
-export default function FacilityPage() {
-    return (
-        <div className="bg-white min-h-screen py-12">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="text-center">
-                    <h2 className="text-3xl font-extrabold text-gray-900 sm:text-4xl">
-                        시설 안내
-                    </h2>
-                    <p className="mt-4 text-xl text-gray-500">
-                        최고급 바닥재와 조명이 완비된 프리미엄 농구 코트
-                    </p>
-                </div>
+import { supabase } from "@/lib/supabase";
+import Image from "next/image";
 
-                <div className="mt-16 bg-gray-50 overflow-hidden shadow rounded-lg">
-                    <div className="px-4 py-5 sm:p-6 grid grid-cols-1 md:grid-cols-2 gap-8">
-                        <div>
-                            {/* Image Placeholder */}
-                            <div className="h-64 bg-gray-200 rounded-lg flex items-center justify-center text-gray-400 mb-4">
-                                <span>시설 사진 1</span>
-                            </div>
-                            <h3 className="text-lg font-bold text-gray-900">제 1코트 (핑크)</h3>
-                            <ul className="mt-2 list-disc list-inside text-gray-600">
-                                <li>국제 규격 농구 코트</li>
-                                <li>충격 흡수 최고급 마루</li>
-                                <li>냉난방 완비</li>
-                            </ul>
+export const dynamic = "force-dynamic";
+
+export default async function FacilityPage() {
+    const { data: facilities } = await supabase
+        .from("facilities")
+        .select("*")
+        .order("order_index", { ascending: true });
+
+    return (
+        <main className="min-h-screen bg-gray-50">
+            {/* Hero */}
+            <section className="bg-black text-white py-20 px-4 text-center">
+                <h1 className="text-4xl font-bold mb-4">시설 안내</h1>
+                <p className="text-lg text-gray-300">
+                    최고급 바닥재와 냉난방 시설이 완비된 프리미엄 코트
+                </p>
+            </section>
+
+            {/* Courts */}
+            <section className="max-w-5xl mx-auto py-12 px-4 space-y-12">
+                {facilities?.map((facility, idx) => (
+                    <div
+                        key={facility.id}
+                        className={`bg-white rounded-3xl overflow-hidden shadow-sm flex flex-col ${idx % 2 === 1 ? "md:flex-row-reverse" : "md:flex-row"
+                            }`}
+                    >
+                        <div className="md:w-1/2 h-64 md:h-auto relative bg-gray-200">
+                            {facility.image_url ? (
+                                <Image
+                                    src={facility.image_url}
+                                    alt={facility.title}
+                                    fill
+                                    className="object-cover"
+                                />
+                            ) : (
+                                <div className="flex items-center justify-center h-full text-gray-400">
+                                    이미지 없음
+                                </div>
+                            )}
                         </div>
-                        <div>
-                            {/* Image Placeholder */}
-                            <div className="h-64 bg-gray-200 rounded-lg flex items-center justify-center text-gray-400 mb-4">
-                                <span>시설 사진 2</span>
-                            </div>
-                            <h3 className="text-lg font-bold text-gray-900">제 2코트 (민트)</h3>
-                            <ul className="mt-2 list-disc list-inside text-gray-600">
-                                <li>3x3 전용 규격</li>
-                                <li>개인 연습 최적화</li>
-                                <li>독립된 연습 공간</li>
+                        <div className="p-8 md:p-12 md:w-1/2 flex flex-col justify-center">
+                            <h2 className="text-3xl font-bold mb-6 text-black">
+                                {facility.title}
+                            </h2>
+                            <ul className="space-y-4">
+                                {facility.description?.map((item: string, i: number) => (
+                                    <li key={i} className="flex items-start gap-3">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-pink-600 mt-2.5" />
+                                        <span className="text-lg text-gray-700">{item}</span>
+                                    </li>
+                                ))}
                             </ul>
                         </div>
                     </div>
-                </div>
-            </div>
-        </div>
+                ))}
+            </section>
+        </main>
     );
 }

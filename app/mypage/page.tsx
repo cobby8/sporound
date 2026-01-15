@@ -54,7 +54,8 @@ export default function MyPage() {
                 .from("reservations")
                 .select(`
                     *,
-                    courts ( name )
+                    courts ( name ),
+                    contracts ( id )
                 `)
                 .eq("user_id", user.id)
                 .order("created_at", { ascending: false });
@@ -202,7 +203,27 @@ export default function MyPage() {
                                                 </div>
                                             )}
                                         </div>
-                                        {/* Future: Add Payment / Cancel buttons here */}
+                                        <div className="flex gap-2 mt-4 md:mt-0">
+                                            {res.status === 'confirmed' && (
+                                                <>
+                                                    {res.contracts && res.contracts.length > 0 ? (
+                                                        <button
+                                                            onClick={() => router.push(`/contract/${res.id}`)}
+                                                            className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+                                                        >
+                                                            계약서 보기
+                                                        </button>
+                                                    ) : (
+                                                        <button
+                                                            onClick={() => router.push(`/contract/${res.id}`)}
+                                                            className="px-4 py-2 text-sm font-bold text-white bg-pink-600 rounded-lg hover:bg-pink-700 shadow-sm"
+                                                        >
+                                                            전자 계약서 작성
+                                                        </button>
+                                                    )}
+                                                </>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
                             ))}
